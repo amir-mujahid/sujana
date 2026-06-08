@@ -40,6 +40,8 @@ during normal stage work.** Everything you need to build is distilled into the s
 | **Repo shape** | Gradle monorepo: **`:app`** (Android) · **`:backend`** (Ktor JVM) · **`:shared`** (pure-Kotlin DTOs shared by both). |
 
 | **File/image uploads** | **Cloudinary** (free tier available). Firebase Storage is NOT used — requires Blaze plan. |
+| **Assignment routing** | **CONTRIBUTOR requests** → rider self-assigns via `POST /requests/{id}/accept` (no dispatcher). **SCHOOL requests** → dispatcher assigns via `POST /assignments`. Dispatcher queue only shows SCHOOL-type PENDING requests. |
+| **Nearby rider matching** | Deferred to Stage 4. `GET /requests/available` returns PENDING CONTRIBUTOR requests (rider browses + self-assigns). Proximity filter (`GET /requests/nearby?lat&lng&radius`) added in Stage 4 once GPS positions are available. |
 
 **Free-tier caveats** (do not block local dev): Cloud Run & Google Maps need a billing account even on free tier.
 

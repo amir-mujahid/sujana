@@ -47,5 +47,18 @@ fun Route.requestRoutes() {
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest)
             call.respond(RequestService.cancelRequest(principal, id))
         }
+
+        get("requests/available") {
+            val principal = call.principal<UserPrincipal>()
+                ?: return@get call.respond(HttpStatusCode.Unauthorized)
+            call.respond(RequestService.listAvailableRequests(principal))
+        }
+
+        post("requests/{id}/accept") {
+            val principal = call.principal<UserPrincipal>()
+                ?: return@post call.respond(HttpStatusCode.Unauthorized)
+            val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            call.respond(RequestService.acceptRequest(principal, id))
+        }
     }
 }

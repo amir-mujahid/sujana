@@ -15,7 +15,9 @@ interface IRequestRepository {
     ): AppResult<PickupRequest>
 
     suspend fun getMyRequests(): AppResult<List<PickupRequest>>
+    suspend fun getAvailableRequests(): AppResult<List<PickupRequest>>
     suspend fun getRequestDetail(id: String): AppResult<PickupRequest>
     suspend fun cancelRequest(id: String): AppResult<PickupRequest>
+    suspend fun acceptRequest(id: String): AppResult<PickupRequest>
     suspend fun getSchools(): AppResult<List<School>>
 }

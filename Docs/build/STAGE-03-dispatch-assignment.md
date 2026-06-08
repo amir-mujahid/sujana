@@ -70,6 +70,10 @@ through its status lifecycle to COMPLETED — keeping the request status in sync
   unique index on (request_id WHERE status <> 'CANCELLED') — only one active assignment per request.
 - Multi-tenant scoping for dispatcher: currently returns all assignments (full tenant isolation
   deferred to Stage 7 Admin work where tenant_id joins will be added).
+- **Post-stage workflow split (Stage 3.5):** CONTRIBUTOR requests now bypass dispatcher.
+  Rider self-assigns via `POST /requests/{id}/accept`. `POST /assignments` (dispatcher path)
+  rejects CONTRIBUTOR-type requests with 400. Rider task screen has "Available" tab showing
+  PENDING CONTRIBUTOR requests. Dispatcher queue filtered to SCHOOL-type only.
 - Request mirrors assignment: ASSIGNED/ACCEPTED→ASSIGNED | COLLECTED→COLLECTED |
   DELIVERED→DELIVERED | COMPLETED→COMPLETED | CANCELLED→PENDING (available for re-assignment).
 

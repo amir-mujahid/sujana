@@ -1,10 +1,16 @@
 package com.sujana.feature.rider
 
 import com.sujana.domain.model.Assignment
+import com.sujana.domain.model.PickupRequest
 
 sealed class RiderTasksUiState {
     object Loading : RiderTasksUiState()
-    data class Content(val assignments: List<Assignment>) : RiderTasksUiState()
+    data class Content(
+        val assignments: List<Assignment>,
+        val availablePickups: List<PickupRequest> = emptyList(),
+        val acceptingRequestId: String? = null,
+        val acceptError: String? = null,
+    ) : RiderTasksUiState()
     data class Error(val message: String) : RiderTasksUiState()
 }
 

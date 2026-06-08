@@ -12,6 +12,7 @@ import com.sujana.domain.usecase.assignment.GetDispatchQueue
 import com.sujana.domain.usecase.request.GetMyRequests
 import com.sujana.shared.AssignmentStatus
 import com.sujana.shared.RequestStatus
+import com.sujana.shared.RequestType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,7 +75,9 @@ class DispatchViewModel @Inject constructor(
                 .toSet()
 
             val pendingRequests = allRequests.filter {
-                it.status == RequestStatus.PENDING && it.id !in assignedRequestIds
+                it.type == RequestType.SCHOOL &&
+                it.status == RequestStatus.PENDING &&
+                it.id !in assignedRequestIds
             }
             val activeAssignments = allAssignments.filter { it.status in activeStatuses }
 

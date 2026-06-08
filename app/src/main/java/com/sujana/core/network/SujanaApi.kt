@@ -36,6 +36,12 @@ interface SujanaApi {
     @POST("requests/{id}/cancel")
     suspend fun cancelRequest(@Path("id") id: String): RequestDto
 
+    @GET("requests/available")
+    suspend fun getAvailableRequests(): List<RequestDto>
+
+    @POST("requests/{id}/accept")
+    suspend fun acceptRequest(@Path("id") id: String): RequestDto
+
     @GET("riders")
     suspend fun getRiders(): List<UserDto>
 

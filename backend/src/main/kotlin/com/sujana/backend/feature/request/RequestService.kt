@@ -1,9 +1,11 @@
 package com.sujana.backend.feature.request
 
+import com.sujana.backend.db.AssignmentsTable
 import com.sujana.backend.db.RequestsTable
 import com.sujana.backend.db.SchoolsTable
 import com.sujana.backend.db.UsersTable
 import com.sujana.backend.plugins.UserPrincipal
+import com.sujana.shared.AssignmentStatus
 import com.sujana.shared.RequestStatus
 import com.sujana.shared.RequestType
 import com.sujana.shared.Role
@@ -14,6 +16,7 @@ import java.time.OffsetDateTime
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -101,6 +104,67 @@ object RequestService {
         RequestsTable.update({ RequestsTable.id eq uuid }) {
             it[status]    = RequestStatus.CANCELLED.name
             it[updatedAt] = OffsetDateTime.now()
+        }
+
+        val updated = RequestsTable.selectAll().where { RequestsTable.id eq uuid }.single()
+        updated.toDto(schoolNameFor(updated[RequestsTable.dropoffSchoolId]))
+    }
+
+    // --------------- Rider: browse available CONTRIBUTOR requests ---------------
+
+    fun listAvailableRequests(principal: UserPrincipal): List<RequestDto> = transaction {
+        val user = UsersTable.selectAll()
+            .where { UsersTable.firebaseUid eq principal.uid }
+            .singleOrNull() ?: error("User not found")
+
+        if (Role.valueOf(user[UsersTable.role]) != Role.RIDER) {
+            throw SecurityException("Only riders may browse available requests")
+        }
+
+        RequestsTable.selectAll()
+            .where {
+                (RequestsTable.type eq RequestType.CONTRIBUTOR.name) and
+                (RequestsTable.status eq RequestStatus.PENDING.name)
+            }
+            .orderBy(RequestsTable.createdAt, SortOrder.DESC)
+            .map { row -> row.toDto(schoolNameFor(row[RequestsTable.dropoffSchoolId])) }
+    }
+
+    // --------------- Rider: self-assign a CONTRIBUTOR request ---------------
+
+    fun acceptRequest(principal: UserPrincipal, requestId: String): RequestDto = transaction {
+        val rider = UsersTable.selectAll()
+            .where { UsersTable.firebaseUid eq principal.uid }
+            .singleOrNull() ?: error("User not found")
+
+        if (Role.valueOf(rider[UsersTable.role]) != Role.RIDER) {
+            throw SecurityException("Only riders may accept requests")
+        }
+
+        val uuid = UUID.fromString(requestId)
+        val requestRow = RequestsTable.selectAll()
+            .where { RequestsTable.id eq uuid }
+            .singleOrNull() ?: throw NoSuchElementException("Request not found")
+
+        if (RequestType.valueOf(requestRow[RequestsTable.type]) != RequestType.CONTRIBUTOR) {
+            throw IllegalArgumentException("Only CONTRIBUTOR requests can be self-assigned; SCHOOL requests require a dispatcher")
+        }
+
+        if (RequestStatus.valueOf(requestRow[RequestsTable.status]) != RequestStatus.PENDING) {
+            throw IllegalArgumentException("Request is no longer available (status: ${requestRow[RequestsTable.status]})")
+        }
+
+        val now = OffsetDateTime.now()
+        AssignmentsTable.insert {
+            it[AssignmentsTable.requestId]  = uuid
+            it[AssignmentsTable.riderId]    = rider[UsersTable.id]
+            it[AssignmentsTable.status]     = AssignmentStatus.ASSIGNED.name
+            it[AssignmentsTable.assignedAt] = now
+        }
+
+        RequestsTable.update({ RequestsTable.id eq uuid }) {
+            it[RequestsTable.status]    = RequestStatus.ASSIGNED.name
+            it[RequestsTable.updatedAt] = now
         }
 
         val updated = RequestsTable.selectAll().where { RequestsTable.id eq uuid }.single()

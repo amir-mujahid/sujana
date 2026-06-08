@@ -41,12 +41,20 @@ class RequestRepositoryImpl @Inject constructor(
         api.getRequests().map { it.toDomain() }
     }.toAppResult()
 
+    override suspend fun getAvailableRequests(): AppResult<List<PickupRequest>> = runCatching {
+        api.getAvailableRequests().map { it.toDomain() }
+    }.toAppResult()
+
     override suspend fun getRequestDetail(id: String): AppResult<PickupRequest> = runCatching {
         api.getRequest(id).toDomain()
     }.toAppResult()
 
     override suspend fun cancelRequest(id: String): AppResult<PickupRequest> = runCatching {
         api.cancelRequest(id).toDomain()
+    }.toAppResult()
+
+    override suspend fun acceptRequest(id: String): AppResult<PickupRequest> = runCatching {
+        api.acceptRequest(id).toDomain()
     }.toAppResult()
 
     override suspend fun getSchools(): AppResult<List<School>> = runCatching {

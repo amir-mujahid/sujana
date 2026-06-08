@@ -8,6 +8,7 @@ import com.sujana.backend.feature.request.toRequestDto
 import com.sujana.backend.plugins.UserPrincipal
 import com.sujana.shared.AssignmentStatus
 import com.sujana.shared.RequestStatus
+import com.sujana.shared.RequestType
 import com.sujana.shared.Role
 import com.sujana.shared.dto.AssignmentDto
 import com.sujana.shared.dto.CreateAssignmentRequest
@@ -41,6 +42,10 @@ object AssignmentService {
         val requestRow = RequestsTable.selectAll()
             .where { RequestsTable.id eq requestUuid }
             .singleOrNull() ?: throw NoSuchElementException("Request not found")
+
+        if (RequestType.valueOf(requestRow[RequestsTable.type]) != RequestType.SCHOOL) {
+            throw IllegalArgumentException("Dispatcher assignment is only for SCHOOL requests; CONTRIBUTOR requests use the rider self-assign endpoint")
+        }
 
         if (RequestStatus.valueOf(requestRow[RequestsTable.status]) != RequestStatus.PENDING) {
             throw IllegalArgumentException("Only PENDING requests can be assigned")
@@ -204,22 +209,26 @@ object AssignmentService {
             .singleOrNull() ?: error("User not found")
 
     private fun ResultRow.toDto(): AssignmentDto {
+        val reqId  = this[AssignmentsTable.requestId]
+        val ridId  = this[AssignmentsTable.riderId]
+        val dispId = this[AssignmentsTable.dispatcherId]
+
         val requestRow = RequestsTable.selectAll()
-            .where { RequestsTable.id eq this[AssignmentsTable.requestId] }
+            .where { RequestsTable.id eq reqId }
             .single()
         val schoolName = requestRow[RequestsTable.dropoffSchoolId]?.let { sid ->
             SchoolsTable.selectAll().where { SchoolsTable.id eq sid }.singleOrNull()?.get(SchoolsTable.name)
         }
         val riderRow = UsersTable.selectAll()
-            .where { UsersTable.id eq this[AssignmentsTable.riderId] }
+            .where { UsersTable.id eq ridId }
             .single()
 
         return AssignmentDto(
             id           = this[AssignmentsTable.id].toString(),
-            requestId    = this[AssignmentsTable.requestId].toString(),
-            riderId      = this[AssignmentsTable.riderId].toString(),
+            requestId    = reqId.toString(),
+            riderId      = ridId.toString(),
             riderName    = riderRow[UsersTable.name],
-            dispatcherId = this[AssignmentsTable.dispatcherId]?.toString(),
+            dispatcherId = dispId?.toString(),
             status       = AssignmentStatus.valueOf(this[AssignmentsTable.status]),
             request      = requestRow.toRequestDto(schoolName),
             assignedAt   = this[AssignmentsTable.assignedAt].toString(),

@@ -28,12 +28,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +49,7 @@ import com.sujana.core.theme.Radii
 import com.sujana.core.theme.Spacing
 import com.sujana.core.theme.statusColors
 import com.sujana.domain.model.Assignment
+import com.sujana.domain.model.PickupRequest
 import com.sujana.feature.rider.RiderTasksUiState
 import com.sujana.feature.rider.RiderTasksViewModel
 import com.sujana.shared.AssignmentStatus
@@ -55,6 +62,7 @@ fun RiderTasksScreen(
     viewModel: RiderTasksViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -68,14 +76,27 @@ fun RiderTasksScreen(
             )
         },
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick  = { selectedTab = 0 },
+                    text     = { Text("Assigned") },
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick  = { selectedTab = 1 },
+                    text     = { Text("Available") },
+                )
+            }
+
             when (val state = uiState) {
                 is RiderTasksUiState.Loading -> Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier         = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
@@ -84,24 +105,24 @@ fun RiderTasksScreen(
                 is RiderTasksUiState.Error -> TaskListError(state.message, viewModel::load)
 
                 is RiderTasksUiState.Content -> {
-                    if (state.assignments.isEmpty()) {
-                        TaskListEmpty()
-                    } else {
-                        LazyColumn(
-                            modifier            = Modifier.fillMaxSize(),
-                            contentPadding      = PaddingValues(
-                                horizontal = Spacing.lg,
-                                vertical   = Spacing.lg,
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                        ) {
-                            items(state.assignments, key = { it.id }) { assignment ->
-                                TaskCard(
-                                    assignment = assignment,
-                                    onClick    = { onNavigateToTask(assignment.id) },
-                                )
-                            }
-                        }
+                    if (state.acceptError != null) {
+                        Text(
+                            text     = state.acceptError,
+                            style    = MaterialTheme.typography.bodyMedium,
+                            color    = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                        )
+                    }
+                    when (selectedTab) {
+                        0 -> AssignedTab(
+                            assignments      = state.assignments,
+                            onNavigateToTask = onNavigateToTask,
+                        )
+                        1 -> AvailableTab(
+                            pickups             = state.availablePickups,
+                            acceptingRequestId  = state.acceptingRequestId,
+                            onAccept            = viewModel::acceptPickup,
+                        )
                     }
                 }
             }
@@ -110,8 +131,109 @@ fun RiderTasksScreen(
 }
 
 @Composable
+private fun AssignedTab(
+    assignments: List<Assignment>,
+    onNavigateToTask: (String) -> Unit,
+) {
+    if (assignments.isEmpty()) {
+        TaskListEmpty("No assigned tasks", "You have no active assignments right now.")
+    } else {
+        LazyColumn(
+            modifier            = Modifier.fillMaxSize(),
+            contentPadding      = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            items(assignments, key = { it.id }) { assignment ->
+                TaskCard(
+                    assignment = assignment,
+                    onClick    = { onNavigateToTask(assignment.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvailableTab(
+    pickups: List<PickupRequest>,
+    acceptingRequestId: String?,
+    onAccept: (String) -> Unit,
+) {
+    if (pickups.isEmpty()) {
+        TaskListEmpty("No pickups available", "There are no pending contributor requests near you.")
+    } else {
+        LazyColumn(
+            modifier            = Modifier.fillMaxSize(),
+            contentPadding      = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            items(pickups, key = { it.id }) { request ->
+                AvailablePickupCard(
+                    request    = request,
+                    isAccepting = acceptingRequestId == request.id,
+                    onAccept   = { onAccept(request.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvailablePickupCard(
+    request: PickupRequest,
+    isAccepting: Boolean,
+    onAccept: () -> Unit,
+) {
+    Card(
+        modifier  = Modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(Radii.card),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier          = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.cardPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector        = Icons.Filled.LocationOn,
+                contentDescription = null,
+                tint               = MaterialTheme.colorScheme.secondary,
+                modifier           = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(Spacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text     = request.pickupAddress.ifBlank { "—" },
+                    style    = MaterialTheme.typography.bodyLarge,
+                    color    = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (request.dropoffSchoolName != null) {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        text     = "→ ${request.dropoffSchoolName}",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Spacer(Modifier.width(Spacing.sm))
+            if (isAccepting) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                OutlinedButton(onClick = onAccept) { Text("Accept") }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun TaskCard(assignment: Assignment, onClick: () -> Unit) {
-    val colors = MaterialTheme.statusColors
     val (containerColor, textColor) = assignmentStatusColors(assignment.status)
     val statusLabel = assignment.status.name.lowercase().replaceFirstChar { it.uppercase() }
 
@@ -173,7 +295,7 @@ internal fun TaskCard(assignment: Assignment, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TaskListEmpty() {
+private fun TaskListEmpty(title: String, subtitle: String) {
     Column(
         modifier            = Modifier
             .fillMaxSize()
@@ -181,17 +303,9 @@ private fun TaskListEmpty() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text  = "No active tasks",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(Spacing.sm))
-        Text(
-            text  = "You have no assignments right now.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -204,17 +318,9 @@ private fun TaskListError(message: String, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text  = "Could not load tasks",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.error,
-        )
+        Text(text = "Could not load tasks", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(Spacing.sm))
-        Text(
-            text  = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(text = message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(Spacing.xl))
         Button(onClick = onRetry) { Text("Retry") }
     }
