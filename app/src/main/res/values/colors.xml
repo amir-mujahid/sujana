@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window background colors — used by the XML theme before Compose loads -->
+    <color name="background_light">#F8FAFC</color>
+    <color name="background_dark">#020617</color>
+</resources>
