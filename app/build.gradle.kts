@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -16,6 +18,10 @@ android {
         }
     }
 
+    val localProperties = Properties()
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) localProperties.load(localFile.inputStream())
+
     defaultConfig {
         applicationId = "com.sujana"
         minSdk = 31
@@ -25,13 +31,25 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
+        buildConfigField(
+            "String", "BASE_URL",
+            "\"${localProperties.getProperty("base.url", "http://10.0.2.2:8080")}\"",
+        )
+        manifestPlaceholders["mapsApiKey"] =
+            localProperties.getProperty("maps.api_key", "")
+        buildConfigField(
+            "String", "CLOUDINARY_CLOUD_NAME",
+            "\"${localProperties.getProperty("cloudinary.cloud_name", "your_cloud_name")}\"",
+        )
+        buildConfigField(
+            "String", "CLOUDINARY_UPLOAD_PRESET",
+            "\"${localProperties.getProperty("cloudinary.upload_preset", "sujana_unsigned")}\"",
+        )
     }
 
     buildTypes {
         debug {
             isDebuggable = true
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
         }
         release {
             isMinifyEnabled = true

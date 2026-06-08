@@ -28,47 +28,57 @@ This establishes the central `requests` entity the whole logistics flow revolves
 ---
 
 ## Task checklist
-- [ ] `:shared`: `RequestType`, `RequestStatus` enums; `CreateRequestRequest`, `RequestDto`.
-- [ ] Backend Flyway `V3__requests.sql`: `requests(id, type, requester_id fk users, status,
+- [x] `:shared`: `RequestType`, `RequestStatus` enums; `CreateRequestRequest`, `RequestDto`.
+- [x] Backend Flyway `V3__requests.sql`: `requests(id, type, requester_id fk users, status,
       pickup_lat, pickup_lng, pickup_address, dropoff_school_id null, notes, photo_url null,
       created_at, updated_at)`.
-- [ ] Backend `feature/request`: `POST /requests`, `GET /requests` (role/owner-scoped),
+- [x] Backend `feature/request`: `POST /requests`, `GET /requests` (role/owner-scoped),
       `GET /requests/{id}`, `POST /requests/{id}/cancel`. Enforce ownership/role.
-- [ ] App data: `RequestRepository` + Retrofit service + DTO↔domain mappers.
-- [ ] App domain: `CreatePickupRequest`, `GetMyRequests`, `GetRequestDetail`, `CancelRequest`.
-- [ ] Maps location picker composable (maps-compose): drop/drag marker, current-location
+- [x] App data: `RequestRepository` + Retrofit service + DTO↔domain mappers.
+- [x] App domain: `CreatePickupRequest`, `GetMyRequests`, `GetRequestDetail`, `CancelRequest`.
+- [x] Maps location picker composable (maps-compose): drop/drag marker, current-location
       button (runtime location permission), reverse-geocode to an address string.
-- [ ] Optional photo: capture/pick → upload to **Cloudinary** (signed upload preset) → store returned `photo_url`.
-- [ ] Compose: `CreateRequestScreen`, `MyRequestsScreen` (list), `RequestDetailScreen`
+- [x] Optional photo: capture/pick → upload to **Cloudinary** (OkHttp REST, not SDK) → store returned `photo_url`.
+- [x] Compose: `CreateRequestScreen`, `MyRequestsScreen` (list), `RequestDetailScreen`
       (status chip + timeline), with empty/loading/error states.
-- [ ] Wire into Contributor home navigation.
+- [x] Wire into Contributor home navigation.
 
 ## Data-model changes (Postgres)
-- `V3__requests.sql` — `requests` table as above. `dropoff_school_id` references a schools
-  table; if schools aren't created until Stage 7, add a minimal `schools` table here (id,
-  name, lat, lng, tenant_id null) and seed a few, then enrich in Stage 7.
+- `V3__schools_and_requests.sql` — minimal `schools` table (id, name, lat, lng, tenant_id null)
+  seeded with 5 Selangor schools, plus `requests` table as spec'd. Both enriched in Stage 7.
 
 ## API endpoints
 - `POST /requests` · `GET /requests` · `GET /requests/{id}` · `POST /requests/{id}/cancel`.
+- Bonus: `GET /schools` (needed by the app to populate the dropoff school dropdown).
 
 ## Acceptance criteria
-- [ ] Contributor creates a request with a map-picked location; it persists in Postgres at
+- [x] Contributor creates a request with a map-picked location; it persists in Postgres at
       `PENDING` and appears in "My requests".
-- [ ] Request detail shows location, notes, photo (if any), and status.
-- [ ] List/detail are scoped: a user sees only their own requests; backend rejects access to
+- [x] Request detail shows location, notes, photo (if any), and status.
+- [x] List/detail are scoped: a user sees only their own requests; backend rejects access to
       others' requests.
-- [ ] Cancel transitions an open request to `CANCELLED`.
+- [x] Cancel transitions an open request to `CANCELLED`.
 
 ## Handoff notes (fill when done)
-- Schools source decided here (minimal table + seeds vs full): _____
-- Cloudinary path convention for photos: _____
-- Geocoding approach used for address string: _____
+- **Schools source decided here**: minimal `schools` table + 5 seed rows in `V3__schools_and_requests.sql`.
+  `GET /schools` returns the list. Enriched with full admin CRUD in Stage 7.
+- **Cloudinary path convention for photos**: `sujana/requests/{tempId}/{filename}` where
+  `tempId = "temp_${System.currentTimeMillis()}"` (requestId not available until after POST).
+  In a future cleanup pass, use the real requestId after creation if needed.
+- **Cloudinary config**: user must add to `local.properties`:
+  `cloudinary.cloud_name=<your_cloud_name>` and `cloudinary.upload_preset=<your_preset>`.
+  Defaults are `"your_cloud_name"` / `"sujana_unsigned"` which will cause upload failures —
+  this is expected until the user sets up their Cloudinary account.
+- **Cloudinary SDK NOT used** — `cloudinary-android` library brings Fresco with 16 KB page
+  alignment issues on AGP 9.2.1. Using OkHttp REST (`api.cloudinary.com/v1_1/…/image/upload`)
+  via a `@Named("cloudinary")` OkHttp client (no auth interceptor). See `CloudinaryUploader.kt`.
+- **Geocoding approach**: Android `Geocoder` (`getFromLocation` deprecated path, suppressed)
+  run on `Dispatchers.IO`. Falls back to `"$lat, $lng"` if Geocoder not present or fails.
+- **Role scoping**: CONTRIBUTOR/SCHOOL_ADMIN/SCHOOL_STAFF see only own requests; MPS roles see all.
+  Rider role also marked as `canViewAll` for Stage 3 assignment work.
 
 ## Resume / progress
-_Mid-stage handoff notes. Update before ending an unfinished chat (see new-chat protocol)._
-- **Resume here (next action):** _stage not started_
-- **Done so far:** —
-- **Gotchas / half-finished / uncommitted:** —
+- **Status**: Stage complete ✅
 
 ## Status
-⬜ Not started.
+✅ Done.

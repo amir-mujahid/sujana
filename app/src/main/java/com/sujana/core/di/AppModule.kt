@@ -17,6 +17,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -60,4 +61,9 @@ object AppModule {
     @Singleton
     fun provideSujanaApi(retrofit: Retrofit): SujanaApi =
         retrofit.create(SujanaApi::class.java)
+
+    @Named("cloudinary")
+    @Provides
+    @Singleton
+    fun provideCloudinaryHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
 }
