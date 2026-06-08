@@ -1,10 +1,14 @@
 package com.sujana.core.network
 
+import com.sujana.shared.dto.AssignmentDto
+import com.sujana.shared.dto.CreateAssignmentRequest
 import com.sujana.shared.dto.CreateRequestRequest
 import com.sujana.shared.dto.HealthDto
 import com.sujana.shared.dto.MeResponse
 import com.sujana.shared.dto.RequestDto
 import com.sujana.shared.dto.SchoolDto
+import com.sujana.shared.dto.TransitionRequest
+import com.sujana.shared.dto.UserDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -31,4 +35,19 @@ interface SujanaApi {
 
     @POST("requests/{id}/cancel")
     suspend fun cancelRequest(@Path("id") id: String): RequestDto
+
+    @GET("riders")
+    suspend fun getRiders(): List<UserDto>
+
+    @POST("assignments")
+    suspend fun createAssignment(@Body body: CreateAssignmentRequest): AssignmentDto
+
+    @GET("assignments")
+    suspend fun getAssignments(): List<AssignmentDto>
+
+    @POST("assignments/{id}/transition")
+    suspend fun transitionAssignment(
+        @Path("id") id: String,
+        @Body body: TransitionRequest,
+    ): AssignmentDto
 }

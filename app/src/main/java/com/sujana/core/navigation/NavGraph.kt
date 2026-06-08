@@ -16,6 +16,8 @@ import com.sujana.domain.model.User
 import com.sujana.feature.auth.AuthViewModel
 import com.sujana.feature.auth.ui.LoginScreen
 import com.sujana.feature.auth.ui.RegisterScreen
+import com.sujana.feature.dispatch.DispatchViewModel
+import com.sujana.feature.dispatch.ui.DispatchQueueScreen
 import com.sujana.feature.home.ContributorHomeScreen
 import com.sujana.feature.home.MpsAdminHomeScreen
 import com.sujana.feature.home.MpsDispatcherHomeScreen
@@ -29,6 +31,10 @@ import com.sujana.feature.request.RequestDetailViewModel
 import com.sujana.feature.request.ui.CreateRequestScreen
 import com.sujana.feature.request.ui.MyRequestsScreen
 import com.sujana.feature.request.ui.RequestDetailScreen
+import com.sujana.feature.rider.RiderTasksViewModel
+import com.sujana.feature.rider.TaskDetailViewModel
+import com.sujana.feature.rider.ui.RiderTasksScreen
+import com.sujana.feature.rider.ui.TaskDetailScreen
 import com.sujana.shared.Role
 
 private object Routes {
@@ -45,8 +51,14 @@ private object Routes {
     const val MY_REQUESTS          = "contributor/requests"
     const val CREATE_REQUEST       = "contributor/requests/create"
     const val REQUEST_DETAIL       = "contributor/requests/{requestId}"
+    // Dispatcher sub-routes
+    const val DISPATCH_QUEUE       = "dispatcher/queue"
+    // Rider sub-routes
+    const val RIDER_TASKS          = "rider/tasks"
+    const val TASK_DETAIL          = "rider/tasks/{assignmentId}"
 
     fun requestDetail(id: String) = "contributor/requests/$id"
+    fun taskDetail(id: String)    = "rider/tasks/$id"
 }
 
 private fun User.homeRoute(): String = when (role) {
@@ -116,10 +128,13 @@ fun RootNavGraph(
         }
         composable(Routes.HOME_MPS_DISPATCHER) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            MpsDispatcherHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            MpsDispatcherHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToDispatchQueue = { navController.navigate(Routes.DISPATCH_QUEUE) },
+            )
         }
         composable(Routes.HOME_SCHOOL_ADMIN) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
@@ -137,10 +152,13 @@ fun RootNavGraph(
         }
         composable(Routes.HOME_RIDER) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            RiderHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            RiderHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToMyTasks = { navController.navigate(Routes.RIDER_TASKS) },
+            )
         }
 
         // --- Contributor routes ---
@@ -158,10 +176,10 @@ fun RootNavGraph(
         composable(Routes.MY_REQUESTS) {
             val viewModel: MyRequestsViewModel = hiltViewModel()
             MyRequestsScreen(
-                onNavigateUp     = { navController.navigateUp() },
+                onNavigateUp       = { navController.navigateUp() },
                 onNavigateToDetail = { id -> navController.navigate(Routes.requestDetail(id)) },
                 onNavigateToCreate = { navController.navigate(Routes.CREATE_REQUEST) },
-                viewModel        = viewModel,
+                viewModel          = viewModel,
             )
         }
         composable(Routes.CREATE_REQUEST) {
@@ -178,6 +196,35 @@ fun RootNavGraph(
         ) {
             val viewModel: RequestDetailViewModel = hiltViewModel()
             RequestDetailScreen(
+                onNavigateUp = { navController.navigateUp() },
+                viewModel    = viewModel,
+            )
+        }
+
+        // --- Dispatcher routes ---
+        composable(Routes.DISPATCH_QUEUE) {
+            val viewModel: DispatchViewModel = hiltViewModel()
+            DispatchQueueScreen(
+                onNavigateUp = { navController.navigateUp() },
+                viewModel    = viewModel,
+            )
+        }
+
+        // --- Rider routes ---
+        composable(Routes.RIDER_TASKS) {
+            val viewModel: RiderTasksViewModel = hiltViewModel()
+            RiderTasksScreen(
+                onNavigateUp     = { navController.navigateUp() },
+                onNavigateToTask = { id -> navController.navigate(Routes.taskDetail(id)) },
+                viewModel        = viewModel,
+            )
+        }
+        composable(
+            route     = Routes.TASK_DETAIL,
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType }),
+        ) {
+            val viewModel: TaskDetailViewModel = hiltViewModel()
+            TaskDetailScreen(
                 onNavigateUp = { navController.navigateUp() },
                 viewModel    = viewModel,
             )

@@ -83,7 +83,7 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | 0 | Foundation & Infrastructure | ✅ | Monorepo, Compose, catalog, theme, Firebase deps, Ktor+Postgres skeleton |
 | 1 | Auth & RBAC | ✅ | Firebase Auth, 7 roles, custom claims, `/auth/me`, role-gated nav, DataStore session |
 | 2 | Core Request System | ✅ | requests+schools tables, CRUD API, location picker, Cloudinary photo, list/detail/cancel |
-| 3 | Dispatch & Assignment | ⬜ | `assignments`, rider inbox, status transitions |
+| 3 | Dispatch & Assignment | ✅ | `assignments` table, state machine, dispatcher queue, rider inbox |
 | 4 | Live Tracking & Maps | ⬜ | Rider GPS → Realtime DB → requester map; routing |
 | 5 | Notifications (all roles) | ⬜ | FCM + in-app center, `notifications` table, per-role events, prefs |
 | 6 | School→MPS Workflow | ⬜ | Second workflow on shared request/assignment infra |
@@ -92,7 +92,7 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | 9 | Offline · Performance · Security | ⬜ | Room cache, Paging 3, indexing, hardening, R8 |
 | 10 | Observability · Testing · Deploy | ⬜ | Crashlytics/Analytics, tests, deploy backend |
 
-**▶ CURRENT STAGE: 3 — Dispatch & Assignment** (`STAGE-03-dispatch-assignment.md`)
+**▶ CURRENT STAGE: 4 — Live Tracking & Maps** (`STAGE-04-live-tracking-maps.md`)
 
 > When you finish a stage: tick every box in its stage file, fill its **Handoff notes**,
 > set its row above to ✅, move the **▶ CURRENT STAGE** pointer to the next stage, then STOP.

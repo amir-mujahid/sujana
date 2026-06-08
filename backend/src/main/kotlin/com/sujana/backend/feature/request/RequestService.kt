@@ -127,18 +127,4 @@ object RequestService {
         }
 }
 
-private fun ResultRow.toDto(schoolName: String?) = RequestDto(
-    id               = this[RequestsTable.id].toString(),
-    type             = RequestType.valueOf(this[RequestsTable.type]),
-    requesterId      = this[RequestsTable.requesterId].toString(),
-    status           = RequestStatus.valueOf(this[RequestsTable.status]),
-    pickupLat        = this[RequestsTable.pickupLat],
-    pickupLng        = this[RequestsTable.pickupLng],
-    pickupAddress    = this[RequestsTable.pickupAddress],
-    dropoffSchoolId  = this[RequestsTable.dropoffSchoolId]?.toString(),
-    dropoffSchoolName = schoolName,
-    notes            = this[RequestsTable.notes],
-    photoUrl         = this[RequestsTable.photoUrl],
-    createdAt        = this[RequestsTable.createdAt].toString(),
-    updatedAt        = this[RequestsTable.updatedAt].toString(),
-)
+private fun ResultRow.toDto(schoolName: String?) = toRequestDto(schoolName)

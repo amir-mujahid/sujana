@@ -1,5 +1,6 @@
 package com.sujana.backend
 
+import com.sujana.backend.feature.assignment.assignmentRoutes
 import com.sujana.backend.feature.auth.authRoutes
 import com.sujana.backend.feature.health.healthRoutes
 import com.sujana.backend.feature.request.requestRoutes
@@ -33,5 +34,6 @@ fun Application.module() {
         healthRoutes()
         authRoutes()
         requestRoutes()
+        assignmentRoutes()
     }
 }
