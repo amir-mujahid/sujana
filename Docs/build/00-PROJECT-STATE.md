@@ -81,7 +81,7 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | # | Stage | Status | One-line state |
 |---|-------|:------:|----------------|
 | 0 | Foundation & Infrastructure | ✅ | Monorepo, Compose, catalog, theme, Firebase deps, Ktor+Postgres skeleton |
-| 1 | Auth & RBAC | ⬜ | Firebase Auth, 7 roles, custom claims, `/auth/me`, role-gated nav |
+| 1 | Auth & RBAC | ✅ | Firebase Auth, 7 roles, custom claims, `/auth/me`, role-gated nav, DataStore session |
 | 2 | Core Request System | ⬜ | Contributor pickup requests, `requests` table, list/detail |
 | 3 | Dispatch & Assignment | ⬜ | `assignments`, rider inbox, status transitions |
 | 4 | Live Tracking & Maps | ⬜ | Rider GPS → Realtime DB → requester map; routing |
@@ -92,7 +92,7 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | 9 | Offline · Performance · Security | ⬜ | Room cache, Paging 3, indexing, hardening, R8 |
 | 10 | Observability · Testing · Deploy | ⬜ | Crashlytics/Analytics, tests, deploy backend |
 
-**▶ CURRENT STAGE: 1 — Auth & RBAC** (`STAGE-01-auth.md`)
+**▶ CURRENT STAGE: 2 — Core Request System** (`STAGE-02-core-request.md`)
 
 > When you finish a stage: tick every box in its stage file, fill its **Handoff notes**,
 > set its row above to ✅, move the **▶ CURRENT STAGE** pointer to the next stage, then STOP.

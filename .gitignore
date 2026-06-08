@@ -22,6 +22,11 @@ shared/build/
 # Firebase — contains API keys; each dev uses their own
 google-services.json
 
-# Secrets
+# IDE
+.idea/
+
+# Secrets — never commit service account credentials
 *.env
 service-account.json
+*service-account*.json
+*firebase-adminsdk*.json

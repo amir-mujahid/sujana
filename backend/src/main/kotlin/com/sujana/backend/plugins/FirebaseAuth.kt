@@ -14,6 +14,8 @@ import java.io.ByteArrayInputStream
 data class UserPrincipal(
     val uid: String,
     val email: String?,
+    val name: String?,
+    val emailVerified: Boolean,
     val role: String?,
     val tenantId: String?,
 )
@@ -44,6 +46,8 @@ fun Application.configureFirebaseAuth() {
                     return@authenticate UserPrincipal(
                         uid = "dev-uid",
                         email = "dev@sujana.local",
+                        name = "Dev User",
+                        emailVerified = true,
                         role = null,
                         tenantId = null,
                     )
@@ -53,6 +57,8 @@ fun Application.configureFirebaseAuth() {
                     UserPrincipal(
                         uid = decoded.uid,
                         email = decoded.email,
+                        name = decoded.name,
+                        emailVerified = decoded.isEmailVerified,
                         role = decoded.claims["role"] as? String,
                         tenantId = decoded.claims["tenantId"] as? String,
                     )

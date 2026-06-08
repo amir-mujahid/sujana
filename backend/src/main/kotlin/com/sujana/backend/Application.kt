@@ -1,5 +1,6 @@
 package com.sujana.backend
 
+import com.sujana.backend.feature.auth.authRoutes
 import com.sujana.backend.feature.health.healthRoutes
 import com.sujana.backend.plugins.configureDatabase
 import com.sujana.backend.plugins.configureFirebaseAuth
@@ -29,5 +30,6 @@ fun Application.module() {
     }
     routing {
         healthRoutes()
+        authRoutes()
     }
 }
