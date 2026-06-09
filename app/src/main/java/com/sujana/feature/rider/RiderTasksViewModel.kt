@@ -6,11 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
 import com.sujana.core.common.AppResult
+import com.sujana.core.websocket.WebSocketManager
 import com.sujana.domain.usecase.assignment.GetRiderTasks
 import com.sujana.domain.usecase.assignment.SelfAssignRequest
 import com.sujana.domain.usecase.assignment.TransitionAssignment
 import com.sujana.domain.usecase.request.GetNearbyPickups
 import com.sujana.shared.AssignmentStatus
+import com.sujana.shared.WsEventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -24,6 +26,7 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -34,6 +37,7 @@ class RiderTasksViewModel @Inject constructor(
     private val getNearbyPickups: GetNearbyPickups,
     private val selfAssignRequest: SelfAssignRequest,
     private val transitionAssignment: TransitionAssignment,
+    private val webSocketManager: WebSocketManager,
 ) : ViewModel() {
 
     private val fusedClient = LocationServices.getFusedLocationProviderClient(context)
@@ -47,6 +51,15 @@ class RiderTasksViewModel @Inject constructor(
             while (true) {
                 delay(POLL_MS)
                 silentRefresh()
+            }
+        }
+        viewModelScope.launch {
+            webSocketManager.events.collect { event ->
+                if (event.event == WsEventType.ASSIGNMENT_STATUS_CHANGED ||
+                    event.event == WsEventType.REQUEST_STATUS_CHANGED
+                ) {
+                    silentRefresh()
+                }
             }
         }
     }

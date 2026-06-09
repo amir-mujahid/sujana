@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.sujana.domain.model.User
 import com.sujana.feature.auth.AuthViewModel
 import com.sujana.feature.auth.ui.LoginScreen
@@ -25,6 +26,9 @@ import com.sujana.feature.home.RiderHomeScreen
 import com.sujana.feature.home.SchoolAdminHomeScreen
 import com.sujana.feature.home.SchoolStaffHomeScreen
 import com.sujana.feature.home.SuperAdminHomeScreen
+import com.sujana.feature.notification.NotificationViewModel
+import com.sujana.feature.notification.ui.NotificationCenterScreen
+import com.sujana.feature.notification.ui.NotificationPrefsScreen
 import com.sujana.feature.request.CreateRequestViewModel
 import com.sujana.feature.request.MyRequestsViewModel
 import com.sujana.feature.request.RequestDetailViewModel
@@ -61,6 +65,9 @@ private object Routes {
     const val TASK_DETAIL          = "rider/tasks/{assignmentId}"
     // Tracking
     const val LIVE_TRACKING        = "tracking/{assignmentId}"
+    // Notifications
+    const val NOTIFICATIONS        = "notifications"
+    const val NOTIFICATION_PREFS   = "notifications/prefs"
 
     fun requestDetail(id: String)  = "contributor/requests/$id"
     fun taskDetail(id: String)     = "rider/tasks/$id"
@@ -75,6 +82,23 @@ private fun User.homeRoute(): String = when (role) {
     Role.SCHOOL_STAFF    -> Routes.HOME_SCHOOL_STAFF
     Role.RIDER           -> Routes.HOME_RIDER
     Role.CONTRIBUTOR     -> Routes.HOME_CONTRIBUTOR
+}
+
+private fun handleSujanaDeepLink(deeplink: String, navController: androidx.navigation.NavController) {
+    val path = deeplink.removePrefix("sujana://")
+    when {
+        path.startsWith("request/")    -> {
+            val id = path.removePrefix("request/")
+            navController.navigate(Routes.requestDetail(id))
+        }
+        path.startsWith("assignment/") -> {
+            val id = path.removePrefix("assignment/")
+            navController.navigate(Routes.taskDetail(id))
+        }
+        path == "dispatch"             -> navController.navigate(Routes.DISPATCH_QUEUE)
+        path == "notifications"        -> navController.navigate(Routes.NOTIFICATIONS)
+        else -> { /* unknown — ignore */ }
+    }
 }
 
 @Composable
@@ -203,6 +227,7 @@ fun RootNavGraph(
         composable(
             route     = Routes.REQUEST_DETAIL,
             arguments = listOf(navArgument("requestId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "sujana://request/{requestId}" }),
         ) {
             val viewModel: RequestDetailViewModel = hiltViewModel()
             RequestDetailScreen(
@@ -213,7 +238,10 @@ fun RootNavGraph(
         }
 
         // --- Dispatcher routes ---
-        composable(Routes.DISPATCH_QUEUE) {
+        composable(
+            route     = Routes.DISPATCH_QUEUE,
+            deepLinks = listOf(navDeepLink { uriPattern = "sujana://dispatch" }),
+        ) {
             val viewModel: DispatchViewModel = hiltViewModel()
             DispatchQueueScreen(
                 onNavigateUp = { navController.navigateUp() },
@@ -233,6 +261,7 @@ fun RootNavGraph(
         composable(
             route     = Routes.TASK_DETAIL,
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "sujana://assignment/{assignmentId}" }),
         ) {
             val viewModel: TaskDetailViewModel = hiltViewModel()
             TaskDetailScreen(
@@ -254,6 +283,27 @@ fun RootNavGraph(
                     viewModel    = viewModel,
                 )
             }
+        }
+
+        // --- Notification routes ---
+        composable(
+            route     = Routes.NOTIFICATIONS,
+            deepLinks = listOf(navDeepLink { uriPattern = "sujana://notifications" }),
+        ) {
+            val viewModel: NotificationViewModel = hiltViewModel()
+            NotificationCenterScreen(
+                onNavigateUp       = { navController.navigateUp() },
+                onNavigateToPrefs  = { navController.navigate(Routes.NOTIFICATION_PREFS) },
+                onDeepLink         = { deeplink -> handleSujanaDeepLink(deeplink, navController) },
+                viewModel          = viewModel,
+            )
+        }
+        composable(Routes.NOTIFICATION_PREFS) {
+            val viewModel: NotificationViewModel = hiltViewModel()
+            NotificationPrefsScreen(
+                onNavigateUp = { navController.navigateUp() },
+                viewModel    = viewModel,
+            )
         }
     }
 }

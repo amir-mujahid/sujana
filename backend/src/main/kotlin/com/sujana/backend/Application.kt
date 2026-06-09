@@ -3,11 +3,14 @@ package com.sujana.backend
 import com.sujana.backend.feature.assignment.assignmentRoutes
 import com.sujana.backend.feature.auth.authRoutes
 import com.sujana.backend.feature.health.healthRoutes
+import com.sujana.backend.feature.notification.notificationRoutes
 import com.sujana.backend.feature.request.requestRoutes
+import com.sujana.backend.feature.ws.webSocketRoutes
 import com.sujana.backend.plugins.configureDatabase
 import com.sujana.backend.plugins.configureFirebaseAuth
 import com.sujana.backend.plugins.configureSerialization
 import com.sujana.backend.plugins.configureStatusPages
+import com.sujana.backend.plugins.configureWebSockets
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
@@ -27,6 +30,7 @@ fun Application.module() {
     configureStatusPages()
     configureDatabase()
     configureFirebaseAuth()
+    configureWebSockets()
     install(CallLogging) {
         level = Level.INFO
     }
@@ -35,5 +39,7 @@ fun Application.module() {
         authRoutes()
         requestRoutes()
         assignmentRoutes()
+        notificationRoutes()
+        webSocketRoutes()
     }
 }

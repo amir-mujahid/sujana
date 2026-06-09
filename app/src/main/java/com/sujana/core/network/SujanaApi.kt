@@ -5,6 +5,10 @@ import com.sujana.shared.dto.CreateAssignmentRequest
 import com.sujana.shared.dto.CreateRequestRequest
 import com.sujana.shared.dto.HealthDto
 import com.sujana.shared.dto.MeResponse
+import com.sujana.shared.dto.NotificationDto
+import com.sujana.shared.dto.NotificationPageResponse
+import com.sujana.shared.dto.NotificationPrefDto
+import com.sujana.shared.dto.RegisterTokenRequest
 import com.sujana.shared.dto.RequestDto
 import com.sujana.shared.dto.SchoolDto
 import com.sujana.shared.dto.TransitionRequest
@@ -12,7 +16,9 @@ import com.sujana.shared.dto.UserDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface SujanaApi {
     @GET("health")
@@ -66,4 +72,26 @@ interface SujanaApi {
         @Path("id") id: String,
         @Body body: TransitionRequest,
     ): AssignmentDto
+
+    // Notifications
+    @POST("devices/token")
+    suspend fun registerToken(@Body body: RegisterTokenRequest)
+
+    @GET("notifications")
+    suspend fun getNotifications(
+        @Query("page") page: Int = 1,
+        @Query("pageSize") pageSize: Int = 20,
+    ): NotificationPageResponse
+
+    @POST("notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: String)
+
+    @POST("notifications/read-all")
+    suspend fun markAllNotificationsRead()
+
+    @GET("notification-prefs")
+    suspend fun getNotificationPrefs(): List<NotificationPrefDto>
+
+    @PUT("notification-prefs")
+    suspend fun updateNotificationPref(@Body body: NotificationPrefDto)
 }

@@ -1,5 +1,6 @@
 package com.sujana.backend.feature.assignment
 
+import com.sujana.backend.feature.notification.NotificationService
 import com.sujana.backend.plugins.FIREBASE_AUTH
 import com.sujana.backend.plugins.UserPrincipal
 import com.sujana.shared.dto.CreateAssignmentRequest
@@ -12,6 +13,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import java.util.UUID
 
 fun Route.assignmentRoutes() {
     authenticate(FIREBASE_AUTH) {
@@ -26,6 +28,11 @@ fun Route.assignmentRoutes() {
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val body = call.receive<CreateAssignmentRequest>()
             val dto = AssignmentService.createAssignment(principal, body)
+            NotificationService.onNewAssignment(
+                assignmentId = UUID.fromString(dto.id),
+                riderId = UUID.fromString(dto.riderId),
+                requestId = UUID.fromString(dto.requestId),
+            )
             call.respond(HttpStatusCode.Created, dto)
         }
 
@@ -49,7 +56,17 @@ fun Route.assignmentRoutes() {
             val id = call.parameters["id"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest)
             val body = call.receive<TransitionRequest>()
-            call.respond(AssignmentService.transitionAssignment(principal, id, body))
+            val dto = AssignmentService.transitionAssignment(principal, id, body)
+            val requesterId = AssignmentService.requesterIdForAssignment(UUID.fromString(dto.id))
+            if (requesterId != null) {
+                NotificationService.onAssignmentStatusChanged(
+                    assignmentId = UUID.fromString(dto.id),
+                    newStatus = dto.status,
+                    riderId = UUID.fromString(dto.riderId),
+                    requesterId = requesterId,
+                )
+            }
+            call.respond(dto)
         }
     }
 }

@@ -1,7 +1,9 @@
 package com.sujana.backend.feature.request
 
+import com.sujana.backend.feature.notification.NotificationService
 import com.sujana.backend.plugins.FIREBASE_AUTH
 import com.sujana.backend.plugins.UserPrincipal
+import com.sujana.shared.RequestType
 import com.sujana.shared.dto.CreateRequestRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -11,6 +13,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import java.util.UUID
 
 fun Route.requestRoutes() {
     authenticate(FIREBASE_AUTH) {
@@ -25,6 +28,10 @@ fun Route.requestRoutes() {
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val body = call.receive<CreateRequestRequest>()
             val dto = RequestService.createRequest(principal, body)
+            NotificationService.onRequestCreated(UUID.fromString(dto.id), UUID.fromString(dto.requesterId))
+            if (body.type == RequestType.SCHOOL) {
+                NotificationService.notifyDispatchersNewRequest(UUID.fromString(dto.id))
+            }
             call.respond(HttpStatusCode.Created, dto)
         }
 
@@ -45,7 +52,14 @@ fun Route.requestRoutes() {
             val principal = call.principal<UserPrincipal>()
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            call.respond(RequestService.cancelRequest(principal, id))
+            val dto = RequestService.cancelRequest(principal, id)
+            NotificationService.onRequestStatusChanged(
+                requestId = UUID.fromString(dto.id),
+                newStatus = dto.status,
+                requesterId = UUID.fromString(dto.requesterId),
+                riderId = dto.assignmentId?.let { _ -> RequestService.riderIdForRequest(UUID.fromString(dto.id)) },
+            )
+            call.respond(dto)
         }
 
         get("requests/available") {
@@ -69,7 +83,14 @@ fun Route.requestRoutes() {
             val principal = call.principal<UserPrincipal>()
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            call.respond(RequestService.acceptRequest(principal, id))
+            val dto = RequestService.acceptRequest(principal, id)
+            NotificationService.onRequestStatusChanged(
+                requestId = UUID.fromString(dto.id),
+                newStatus = dto.status,
+                requesterId = UUID.fromString(dto.requesterId),
+                riderId = dto.assignmentId?.let { _ -> RequestService.riderIdForRequest(UUID.fromString(dto.id)) },
+            )
+            call.respond(dto)
         }
     }
 }

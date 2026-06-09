@@ -42,7 +42,8 @@ during normal stage work.** Everything you need to build is distilled into the s
 | **File/image uploads** | **Cloudinary** (free tier available). Firebase Storage is NOT used — requires Blaze plan. |
 | **Assignment routing** | **CONTRIBUTOR requests** → rider self-assigns via `POST /requests/{id}/accept` (no dispatcher). **SCHOOL requests** → dispatcher assigns via `POST /assignments`. Dispatcher queue only shows SCHOOL-type PENDING requests. |
 | **Nearby rider matching** | ✅ Stage 4 complete. `GET /requests/nearby?lat&lng&radius` added (default 10 000 m app-side, Kotlin haversine on backend). `GET /requests/available` kept for backward compat. |
-| **Real-time state sync** | **WebSockets (foreground) + FCM (background).** Ktor `ws("/ws")` — one connection per logged-in user, Firebase-token-authenticated, broadcasts status-change events (`REQUEST_STATUS_CHANGED`, `ASSIGNMENT_STATUS_CHANGED`). Android `WebSocketManager` singleton exposes a `SharedFlow<WsEvent>`; ViewModels collect it and do targeted refresh. FCM (Stage 5) handles background. 10 s poll kept as silent fallback. Implemented in **Stage 5**. |
+| **Real-time state sync** | **WebSockets (foreground) + FCM (background).** Ktor `ws("/ws")` — one connection per logged-in user, Firebase-token-authenticated, broadcasts status-change events (`REQUEST_STATUS_CHANGED`, `ASSIGNMENT_STATUS_CHANGED`). Android `WebSocketManager` singleton exposes a `SharedFlow<WsEvent>`; ViewModels collect it and do targeted refresh. FCM handles background. 10 s poll kept as silent fallback. ✅ Implemented in **Stage 5**. |
+| **Notification deep-link scheme** | `sujana://request/{id}`, `sujana://assignment/{id}`, `sujana://dispatch`, `sujana://notifications`. Registered via `navDeepLink` in NavGraph; `handleSujanaDeepLink()` for in-app nav from NotificationCenter. FCM notification tap → Activity intent with `sujana://` URI → Compose Navigation. ✅ Implemented in **Stage 5**. |
 
 **Free-tier caveats** (do not block local dev): Cloud Run & Google Maps need a billing account even on free tier.
 
@@ -88,14 +89,14 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | 2 | Core Request System | ✅ | requests+schools tables, CRUD API, location picker, Cloudinary photo, list/detail/cancel |
 | 3 | Dispatch & Assignment | ✅ | `assignments` table, state machine, dispatcher queue, rider inbox |
 | 4 | Live Tracking & Maps | ✅ | LocationTrackingService → RTDB → LiveTrackingScreen + Directions API polyline |
-| 5 | Notifications (all roles) | ⬜ | FCM + in-app center, `notifications` table, per-role events, prefs |
+| 5 | Notifications (all roles) | ✅ | WebSocket foreground push + FCM background, `notifications` table, in-app center, per-role events, prefs |
 | 6 | School→MPS Workflow | ⬜ | Second workflow on shared request/assignment infra |
 | 7 | Admin & Tenant Management | ⬜ | Tenants/schools/waste-points/users CRUD, audit logs |
 | 8 | Analytics Dashboard | ⬜ | Postgres aggregates + charts |
 | 9 | Offline · Performance · Security | ⬜ | Room cache, Paging 3, indexing, hardening, R8 |
 | 10 | Observability · Testing · Deploy | ⬜ | Crashlytics/Analytics, tests, deploy backend |
 
-**▶ CURRENT STAGE: 5 — Notifications** (`STAGE-05-notifications.md`)
+**▶ CURRENT STAGE: 6 — School→MPS Workflow** (`STAGE-06-school-mps.md`)
 
 > When you finish a stage: tick every box in its stage file, fill its **Handoff notes**,
 > set its row above to ✅, move the **▶ CURRENT STAGE** pointer to the next stage, then STOP.

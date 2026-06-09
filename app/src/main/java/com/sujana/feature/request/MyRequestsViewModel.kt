@@ -3,7 +3,9 @@ package com.sujana.feature.request
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sujana.core.common.AppResult
+import com.sujana.core.websocket.WebSocketManager
 import com.sujana.domain.usecase.request.GetMyRequests
+import com.sujana.shared.WsEventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MyRequestsViewModel @Inject constructor(
     private val getMyRequests: GetMyRequests,
+    private val webSocketManager: WebSocketManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<MyRequestsUiState>(MyRequestsUiState.Loading)
@@ -26,6 +29,13 @@ class MyRequestsViewModel @Inject constructor(
             while (true) {
                 delay(POLL_MS)
                 silentRefresh()
+            }
+        }
+        viewModelScope.launch {
+            webSocketManager.events.collect { event ->
+                if (event.event == WsEventType.REQUEST_STATUS_CHANGED) {
+                    silentRefresh()
+                }
             }
         }
     }

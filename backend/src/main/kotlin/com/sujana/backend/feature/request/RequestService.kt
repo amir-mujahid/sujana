@@ -215,6 +215,14 @@ object RequestService {
             }
     }
 
+    fun riderIdForRequest(requestId: java.util.UUID): java.util.UUID? = transaction {
+        AssignmentsTable.selectAll()
+            .where { AssignmentsTable.requestId eq requestId }
+            .orderBy(AssignmentsTable.assignedAt, SortOrder.DESC)
+            .firstOrNull()
+            ?.get(AssignmentsTable.riderId)
+    }
+
     private fun schoolInfoFor(schoolId: java.util.UUID?): SchoolInfo? =
         schoolId?.let { sid ->
             SchoolsTable.selectAll().where { SchoolsTable.id eq sid }

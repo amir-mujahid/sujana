@@ -184,6 +184,18 @@ object AssignmentService {
             }
     }
 
+    // --------------- Lookup helpers for notification dispatch ---------------
+
+    fun requesterIdForAssignment(assignmentId: java.util.UUID): java.util.UUID? = transaction {
+        val row = AssignmentsTable.selectAll()
+            .where { AssignmentsTable.id eq assignmentId }
+            .singleOrNull() ?: return@transaction null
+        val requestRow = RequestsTable.selectAll()
+            .where { RequestsTable.id eq row[AssignmentsTable.requestId] }
+            .singleOrNull() ?: return@transaction null
+        requestRow[RequestsTable.requesterId]
+    }
+
     // --------------- Helpers ---------------
 
     private fun validateTransition(

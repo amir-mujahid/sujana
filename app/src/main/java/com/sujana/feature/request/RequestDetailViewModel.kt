@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sujana.core.common.AppResult
+import com.sujana.core.websocket.WebSocketManager
 import com.sujana.domain.usecase.request.CancelRequest
 import com.sujana.domain.usecase.request.GetRequestDetail
+import com.sujana.shared.WsEventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ class RequestDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getRequestDetail: GetRequestDetail,
     private val cancelRequest: CancelRequest,
+    private val webSocketManager: WebSocketManager,
 ) : ViewModel() {
 
     private val requestId: String = checkNotNull(savedStateHandle["requestId"])
@@ -32,6 +35,13 @@ class RequestDetailViewModel @Inject constructor(
             while (true) {
                 delay(POLL_MS)
                 silentRefresh()
+            }
+        }
+        viewModelScope.launch {
+            webSocketManager.events.collect { event ->
+                if (event.event == WsEventType.REQUEST_STATUS_CHANGED && event.entityId == requestId) {
+                    silentRefresh()
+                }
             }
         }
     }
@@ -48,7 +58,7 @@ class RequestDetailViewModel @Inject constructor(
 
     private fun silentRefresh() {
         val current = _uiState.value as? RequestDetailUiState.Content ?: return
-        if (current.isCancelling) return  // let the cancel coroutine own the state
+        if (current.isCancelling) return
         viewModelScope.launch {
             when (val result = getRequestDetail(requestId)) {
                 is AppResult.Success -> _uiState.value = RequestDetailUiState.Content(result.data)
