@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "tracking": {
+      "$assignmentId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.role == 'RIDER' && (
+          !data.exists() ||
+          data.child('riderId').val() == auth.uid
+        ) && newData.child('riderId').val() == auth.uid",
+        ".validate": "newData.hasChildren(['lat', 'lng', 'heading', 'ts', 'riderId']) &&
+          newData.child('lat').isNumber() &&
+          newData.child('lng').isNumber() &&
+          newData.child('heading').isNumber() &&
+          newData.child('ts').isNumber() &&
+          newData.child('riderId').isString() &&
+          newData.child('riderId').val() == auth.uid"
+      }
+    }
+  }
+}

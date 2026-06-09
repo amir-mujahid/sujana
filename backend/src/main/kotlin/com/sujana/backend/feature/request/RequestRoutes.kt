@@ -54,6 +54,17 @@ fun Route.requestRoutes() {
             call.respond(RequestService.listAvailableRequests(principal))
         }
 
+        get("requests/nearby") {
+            val principal = call.principal<UserPrincipal>()
+                ?: return@get call.respond(HttpStatusCode.Unauthorized)
+            val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "lat required"))
+            val lng = call.request.queryParameters["lng"]?.toDoubleOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "lng required"))
+            val radius = call.request.queryParameters["radius"]?.toDoubleOrNull() ?: 5000.0
+            call.respond(RequestService.listNearbyRequests(principal, lat, lng, radius))
+        }
+
         post("requests/{id}/accept") {
             val principal = call.principal<UserPrincipal>()
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)

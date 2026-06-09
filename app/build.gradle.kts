@@ -38,6 +38,10 @@ android {
         manifestPlaceholders["mapsApiKey"] =
             localProperties.getProperty("maps.api_key", "")
         buildConfigField(
+            "String", "MAPS_API_KEY",
+            "\"${localProperties.getProperty("maps.api_key", "")}\"",
+        )
+        buildConfigField(
             "String", "CLOUDINARY_CLOUD_NAME",
             "\"${localProperties.getProperty("cloudinary.cloud_name", "your_cloud_name")}\"",
         )

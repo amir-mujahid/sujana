@@ -35,6 +35,9 @@ import com.sujana.feature.rider.RiderTasksViewModel
 import com.sujana.feature.rider.TaskDetailViewModel
 import com.sujana.feature.rider.ui.RiderTasksScreen
 import com.sujana.feature.rider.ui.TaskDetailScreen
+import com.sujana.feature.tracking.LiveTrackingViewModel
+import com.sujana.feature.tracking.ui.LiveTrackingScreen
+import com.sujana.feature.tracking.ui.LocationPermissionGate
 import com.sujana.shared.Role
 
 private object Routes {
@@ -56,9 +59,12 @@ private object Routes {
     // Rider sub-routes
     const val RIDER_TASKS          = "rider/tasks"
     const val TASK_DETAIL          = "rider/tasks/{assignmentId}"
+    // Tracking
+    const val LIVE_TRACKING        = "tracking/{assignmentId}"
 
-    fun requestDetail(id: String) = "contributor/requests/$id"
-    fun taskDetail(id: String)    = "rider/tasks/$id"
+    fun requestDetail(id: String)  = "contributor/requests/$id"
+    fun taskDetail(id: String)     = "rider/tasks/$id"
+    fun liveTracking(id: String)   = "tracking/$id"
 }
 
 private fun User.homeRoute(): String = when (role) {
@@ -186,7 +192,11 @@ fun RootNavGraph(
             val viewModel: CreateRequestViewModel = hiltViewModel()
             CreateRequestScreen(
                 onNavigateUp    = { navController.navigateUp() },
-                onSubmitSuccess = { navController.navigateUp() },
+                onSubmitSuccess = { id ->
+                    navController.navigate(Routes.requestDetail(id)) {
+                        popUpTo(Routes.CREATE_REQUEST) { inclusive = true }
+                    }
+                },
                 viewModel       = viewModel,
             )
         }
@@ -196,8 +206,9 @@ fun RootNavGraph(
         ) {
             val viewModel: RequestDetailViewModel = hiltViewModel()
             RequestDetailScreen(
-                onNavigateUp = { navController.navigateUp() },
-                viewModel    = viewModel,
+                onNavigateUp         = { navController.navigateUp() },
+                onNavigateToTracking = { assignmentId -> navController.navigate(Routes.liveTracking(assignmentId)) },
+                viewModel            = viewModel,
             )
         }
 
@@ -225,9 +236,24 @@ fun RootNavGraph(
         ) {
             val viewModel: TaskDetailViewModel = hiltViewModel()
             TaskDetailScreen(
-                onNavigateUp = { navController.navigateUp() },
-                viewModel    = viewModel,
+                onNavigateUp         = { navController.navigateUp() },
+                onNavigateToTracking = { assignmentId -> navController.navigate(Routes.liveTracking(assignmentId)) },
+                viewModel            = viewModel,
             )
+        }
+
+        // --- Live tracking ---
+        composable(
+            route     = Routes.LIVE_TRACKING,
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType }),
+        ) {
+            val viewModel: LiveTrackingViewModel = hiltViewModel()
+            LocationPermissionGate {
+                LiveTrackingScreen(
+                    onNavigateUp = { navController.navigateUp() },
+                    viewModel    = viewModel,
+                )
+            }
         }
     }
 }

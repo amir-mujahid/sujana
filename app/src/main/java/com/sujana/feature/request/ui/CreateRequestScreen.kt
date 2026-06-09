@@ -65,14 +65,14 @@ import com.sujana.feature.request.CreateRequestViewModel
 @Composable
 fun CreateRequestScreen(
     onNavigateUp: () -> Unit,
-    onSubmitSuccess: () -> Unit,
+    onSubmitSuccess: (requestId: String) -> Unit,
     viewModel: CreateRequestViewModel,
 ) {
     val form by viewModel.form.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        viewModel.submitSuccess.collect { onSubmitSuccess() }
+        viewModel.submitSuccess.collect { id -> onSubmitSuccess(id) }
     }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sujana.core.common.AppResult
 import com.sujana.domain.usecase.request.GetMyRequests
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +22,12 @@ class MyRequestsViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            while (true) {
+                delay(POLL_MS)
+                silentRefresh()
+            }
+        }
     }
 
     fun load() {
@@ -31,5 +38,19 @@ class MyRequestsViewModel @Inject constructor(
                 is AppResult.Error   -> MyRequestsUiState.Error(result.error.toString())
             }
         }
+    }
+
+    private fun silentRefresh() {
+        if (_uiState.value is MyRequestsUiState.Loading) return
+        viewModelScope.launch {
+            when (val result = getMyRequests()) {
+                is AppResult.Success -> _uiState.value = MyRequestsUiState.Content(result.data)
+                is AppResult.Error   -> { /* keep current state on transient poll failure */ }
+            }
+        }
+    }
+
+    companion object {
+        private const val POLL_MS = 10_000L
     }
 }

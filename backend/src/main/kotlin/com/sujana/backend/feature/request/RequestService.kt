@@ -22,6 +22,12 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 object RequestService {
 
@@ -43,7 +49,7 @@ object RequestService {
         }[RequestsTable.id]
 
         val row = RequestsTable.selectAll().where { RequestsTable.id eq newId }.single()
-        row.toDto(schoolNameFor(row[RequestsTable.dropoffSchoolId]))
+        row.toRequestDto(schoolInfoFor(row[RequestsTable.dropoffSchoolId]))
     }
 
     fun listRequests(principal: UserPrincipal): List<RequestDto> = transaction {
@@ -59,7 +65,7 @@ object RequestService {
                 RequestsTable.selectAll().where { RequestsTable.requesterId eq user[UsersTable.id] }
         }.orderBy(RequestsTable.createdAt, SortOrder.DESC)
 
-        query.map { row -> row.toDto(schoolNameFor(row[RequestsTable.dropoffSchoolId])) }
+        query.map { row -> row.toRequestDto(schoolInfoFor(row[RequestsTable.dropoffSchoolId])) }
     }
 
     fun getRequest(principal: UserPrincipal, requestId: String): RequestDto = transaction {
@@ -78,7 +84,10 @@ object RequestService {
                 role == Role.SUPER_ADMIN || role == Role.RIDER
         if (!isOwner && !canViewAll) throw SecurityException("Access denied")
 
-        row.toDto(schoolNameFor(row[RequestsTable.dropoffSchoolId]))
+        row.toRequestDto(
+            school       = schoolInfoFor(row[RequestsTable.dropoffSchoolId]),
+            assignmentId = assignmentIdFor(row[RequestsTable.id]),
+        )
     }
 
     fun cancelRequest(principal: UserPrincipal, requestId: String): RequestDto = transaction {
@@ -107,10 +116,8 @@ object RequestService {
         }
 
         val updated = RequestsTable.selectAll().where { RequestsTable.id eq uuid }.single()
-        updated.toDto(schoolNameFor(updated[RequestsTable.dropoffSchoolId]))
+        updated.toRequestDto(schoolInfoFor(updated[RequestsTable.dropoffSchoolId]))
     }
-
-    // --------------- Rider: browse available CONTRIBUTOR requests ---------------
 
     fun listAvailableRequests(principal: UserPrincipal): List<RequestDto> = transaction {
         val user = UsersTable.selectAll()
@@ -127,10 +134,34 @@ object RequestService {
                 (RequestsTable.status eq RequestStatus.PENDING.name)
             }
             .orderBy(RequestsTable.createdAt, SortOrder.DESC)
-            .map { row -> row.toDto(schoolNameFor(row[RequestsTable.dropoffSchoolId])) }
+            .map { row -> row.toRequestDto(schoolInfoFor(row[RequestsTable.dropoffSchoolId])) }
     }
 
-    // --------------- Rider: self-assign a CONTRIBUTOR request ---------------
+    fun listNearbyRequests(
+        principal: UserPrincipal,
+        lat: Double,
+        lng: Double,
+        radiusMetres: Double,
+    ): List<RequestDto> = transaction {
+        val user = UsersTable.selectAll()
+            .where { UsersTable.firebaseUid eq principal.uid }
+            .singleOrNull() ?: error("User not found")
+
+        if (Role.valueOf(user[UsersTable.role]) != Role.RIDER) {
+            throw SecurityException("Only riders may browse nearby requests")
+        }
+
+        RequestsTable.selectAll()
+            .where {
+                (RequestsTable.type eq RequestType.CONTRIBUTOR.name) and
+                (RequestsTable.status eq RequestStatus.PENDING.name)
+            }
+            .orderBy(RequestsTable.createdAt, SortOrder.DESC)
+            .filter { row ->
+                haversineMetres(lat, lng, row[RequestsTable.pickupLat], row[RequestsTable.pickupLng]) <= radiusMetres
+            }
+            .map { row -> row.toRequestDto(schoolInfoFor(row[RequestsTable.dropoffSchoolId])) }
+    }
 
     fun acceptRequest(principal: UserPrincipal, requestId: String): RequestDto = transaction {
         val rider = UsersTable.selectAll()
@@ -168,7 +199,7 @@ object RequestService {
         }
 
         val updated = RequestsTable.selectAll().where { RequestsTable.id eq uuid }.single()
-        updated.toDto(schoolNameFor(updated[RequestsTable.dropoffSchoolId]))
+        updated.toRequestDto(schoolInfoFor(updated[RequestsTable.dropoffSchoolId]))
     }
 
     fun listSchools(): List<SchoolDto> = transaction {
@@ -184,11 +215,32 @@ object RequestService {
             }
     }
 
-    private fun schoolNameFor(schoolId: java.util.UUID?): String? =
+    private fun schoolInfoFor(schoolId: java.util.UUID?): SchoolInfo? =
         schoolId?.let { sid ->
             SchoolsTable.selectAll().where { SchoolsTable.id eq sid }
-                .singleOrNull()?.get(SchoolsTable.name)
+                .singleOrNull()?.let { row ->
+                    SchoolInfo(
+                        name = row[SchoolsTable.name],
+                        lat  = row[SchoolsTable.lat],
+                        lng  = row[SchoolsTable.lng],
+                    )
+                }
         }
+
+    private fun assignmentIdFor(requestId: java.util.UUID): String? =
+        AssignmentsTable.selectAll()
+            .where { AssignmentsTable.requestId eq requestId }
+            .orderBy(AssignmentsTable.assignedAt, SortOrder.DESC)
+            .firstOrNull()
+            ?.get(AssignmentsTable.id)
+            ?.toString()
 }
 
-private fun ResultRow.toDto(schoolName: String?) = toRequestDto(schoolName)
+private fun haversineMetres(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+    val R = 6_371_000.0
+    val dLat = (lat2 - lat1) * PI / 180.0
+    val dLng = (lng2 - lng1) * PI / 180.0
+    val a = sin(dLat / 2).pow(2) +
+            cos(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) * sin(dLng / 2).pow(2)
+    return 2 * R * asin(sqrt(a))
+}

@@ -45,6 +45,11 @@ class RequestRepositoryImpl @Inject constructor(
         api.getAvailableRequests().map { it.toDomain() }
     }.toAppResult()
 
+    override suspend fun getNearbyRequests(lat: Double, lng: Double, radiusMetres: Double): AppResult<List<PickupRequest>> =
+        runCatching {
+            api.getNearbyRequests(lat, lng, radiusMetres).map { it.toDomain() }
+        }.toAppResult()
+
     override suspend fun getRequestDetail(id: String): AppResult<PickupRequest> = runCatching {
         api.getRequest(id).toDomain()
     }.toAppResult()
@@ -63,19 +68,22 @@ class RequestRepositoryImpl @Inject constructor(
 }
 
 private fun RequestDto.toDomain() = PickupRequest(
-    id               = id,
-    type             = type,
-    requesterId      = requesterId,
-    status           = status,
-    pickupLat        = pickupLat,
-    pickupLng        = pickupLng,
-    pickupAddress    = pickupAddress,
-    dropoffSchoolId  = dropoffSchoolId,
+    id                = id,
+    type              = type,
+    requesterId       = requesterId,
+    status            = status,
+    pickupLat         = pickupLat,
+    pickupLng         = pickupLng,
+    pickupAddress     = pickupAddress,
+    dropoffSchoolId   = dropoffSchoolId,
     dropoffSchoolName = dropoffSchoolName,
-    notes            = notes,
-    photoUrl         = photoUrl,
-    createdAt        = createdAt,
-    updatedAt        = updatedAt,
+    dropoffSchoolLat  = dropoffSchoolLat,
+    dropoffSchoolLng  = dropoffSchoolLng,
+    assignmentId      = assignmentId,
+    notes             = notes,
+    photoUrl          = photoUrl,
+    createdAt         = createdAt,
+    updatedAt         = updatedAt,
 )
 
 private fun SchoolDto.toDomain() = School(id = id, name = name, lat = lat, lng = lng)

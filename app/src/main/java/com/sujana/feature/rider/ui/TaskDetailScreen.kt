@@ -1,5 +1,6 @@
 package com.sujana.feature.rider.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,30 +28,55 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.sujana.core.theme.Radii
 import com.sujana.core.theme.Spacing
 import com.sujana.domain.model.Assignment
 import com.sujana.feature.rider.TaskDetailUiState
 import com.sujana.feature.rider.TaskDetailViewModel
+import com.sujana.feature.tracking.LocationTrackingService
 import com.sujana.shared.AssignmentStatus
+
+private val TRACKING_ACTIVE_STATUSES = setOf(AssignmentStatus.ACCEPTED, AssignmentStatus.COLLECTED)
+private val TRACKING_STOP_STATUSES   = setOf(AssignmentStatus.DELIVERED, AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
     onNavigateUp: () -> Unit,
+    onNavigateToTracking: (assignmentId: String) -> Unit,
     viewModel: TaskDetailViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val riderFirebaseUid by viewModel.riderFirebaseUid.collectAsState()
+    val context = LocalContext.current
+
+    // Start / stop the foreground service as status changes
+    LaunchedEffect(uiState) {
+        val content = uiState as? TaskDetailUiState.Content ?: return@LaunchedEffect
+        val status = content.assignment.status
+        when {
+            status in TRACKING_ACTIVE_STATUSES && riderFirebaseUid != null -> {
+                startTrackingService(context, viewModel.currentAssignmentId, riderFirebaseUid!!)
+            }
+            status in TRACKING_STOP_STATUSES -> {
+                stopTrackingService(context)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -79,18 +106,31 @@ fun TaskDetailScreen(
                 is TaskDetailUiState.Error -> TaskDetailError(state.message, viewModel::load)
 
                 is TaskDetailUiState.Content -> TaskDetailContent(
-                    state      = state,
-                    onTransition = viewModel::transition,
+                    state                = state,
+                    onTransition         = viewModel::transition,
+                    onNavigateToTracking = { onNavigateToTracking(viewModel.currentAssignmentId) },
                 )
             }
         }
     }
 }
 
+private fun startTrackingService(context: Context, assignmentId: String, riderId: String) {
+    ContextCompat.startForegroundService(
+        context,
+        LocationTrackingService.startIntent(context, assignmentId, riderId),
+    )
+}
+
+private fun stopTrackingService(context: Context) {
+    context.startService(LocationTrackingService.stopIntent(context))
+}
+
 @Composable
 private fun TaskDetailContent(
     state: TaskDetailUiState.Content,
     onTransition: (AssignmentStatus) -> Unit,
+    onNavigateToTracking: () -> Unit,
 ) {
     val assignment = state.assignment
     val request = assignment.request
@@ -104,7 +144,11 @@ private fun TaskDetailContent(
         // Status chip
         val (containerColor, textColor) = assignmentStatusColors(assignment.status)
         val statusLabel = assignment.status.name.lowercase().replaceFirstChar { it.uppercase() }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier            = Modifier.fillMaxWidth(),
+            verticalAlignment   = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Radii.chip))
@@ -116,6 +160,17 @@ private fun TaskDetailContent(
                     style = MaterialTheme.typography.labelMedium,
                     color = textColor,
                 )
+            }
+            // Live map shortcut
+            if (assignment.status in TRACKING_ACTIVE_STATUSES) {
+                OutlinedButton(
+                    onClick  = onNavigateToTracking,
+                    modifier = Modifier.height(36.dp),
+                ) {
+                    Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(Spacing.xs))
+                    Text("Map", style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
 
@@ -187,9 +242,9 @@ private fun TaskDetailContent(
 
         // Action buttons
         StatusActions(
-            status        = assignment.status,
+            status          = assignment.status,
             isTransitioning = state.isTransitioning,
-            onTransition  = onTransition,
+            onTransition    = onTransition,
         )
     }
 }

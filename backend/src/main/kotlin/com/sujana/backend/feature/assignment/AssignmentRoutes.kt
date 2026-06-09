@@ -35,6 +35,14 @@ fun Route.assignmentRoutes() {
             call.respond(AssignmentService.listAssignments(principal))
         }
 
+        get("assignments/{id}") {
+            val principal = call.principal<UserPrincipal>()
+                ?: return@get call.respond(HttpStatusCode.Unauthorized)
+            val id = call.parameters["id"]
+                ?: return@get call.respond(HttpStatusCode.BadRequest)
+            call.respond(AssignmentService.getAssignment(principal, id))
+        }
+
         post("assignments/{id}/transition") {
             val principal = call.principal<UserPrincipal>()
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)

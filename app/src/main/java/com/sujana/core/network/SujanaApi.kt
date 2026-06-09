@@ -39,6 +39,13 @@ interface SujanaApi {
     @GET("requests/available")
     suspend fun getAvailableRequests(): List<RequestDto>
 
+    @GET("requests/nearby")
+    suspend fun getNearbyRequests(
+        @retrofit2.http.Query("lat") lat: Double,
+        @retrofit2.http.Query("lng") lng: Double,
+        @retrofit2.http.Query("radius") radius: Double = 5000.0,
+    ): List<RequestDto>
+
     @POST("requests/{id}/accept")
     suspend fun acceptRequest(@Path("id") id: String): RequestDto
 
@@ -50,6 +57,9 @@ interface SujanaApi {
 
     @GET("assignments")
     suspend fun getAssignments(): List<AssignmentDto>
+
+    @GET("assignments/{id}")
+    suspend fun getAssignment(@Path("id") id: String): AssignmentDto
 
     @POST("assignments/{id}/transition")
     suspend fun transitionAssignment(

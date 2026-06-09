@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -74,6 +75,7 @@ private val STATUS_STEPS = listOf(
 @Composable
 fun RequestDetailScreen(
     onNavigateUp: () -> Unit,
+    onNavigateToTracking: (assignmentId: String) -> Unit,
     viewModel: RequestDetailViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -112,15 +114,20 @@ fun RequestDetailScreen(
                 }
 
                 is RequestDetailUiState.Content -> RequestDetailContent(
-                    request      = state.request,
-                    isCancelling = state.isCancelling,
-                    cancelError  = state.cancelError,
-                    onCancel     = viewModel::cancel,
+                    request              = state.request,
+                    isCancelling         = state.isCancelling,
+                    cancelError          = state.cancelError,
+                    onCancel             = viewModel::cancel,
+                    onNavigateToTracking = { assignmentId -> onNavigateToTracking(assignmentId) },
                 )
             }
         }
     }
 }
+
+private val TRACKABLE_STATUSES = setOf(
+    RequestStatus.ASSIGNED, RequestStatus.COLLECTED, RequestStatus.DELIVERED,
+)
 
 @Composable
 private fun RequestDetailContent(
@@ -128,6 +135,7 @@ private fun RequestDetailContent(
     isCancelling: Boolean,
     cancelError: String?,
     onCancel: () -> Unit,
+    onNavigateToTracking: (assignmentId: String) -> Unit,
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -174,6 +182,19 @@ private fun RequestDetailContent(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            // Track Rider button
+            if (request.status in TRACKABLE_STATUSES && request.assignmentId != null) {
+                Spacer(Modifier.height(Spacing.md))
+                Button(
+                    onClick  = { onNavigateToTracking(request.assignmentId) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text("Track Rider")
+                }
             }
 
             Spacer(Modifier.height(Spacing.xl))

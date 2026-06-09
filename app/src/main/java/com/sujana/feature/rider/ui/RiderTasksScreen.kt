@@ -49,7 +49,7 @@ import com.sujana.core.theme.Radii
 import com.sujana.core.theme.Spacing
 import com.sujana.core.theme.statusColors
 import com.sujana.domain.model.Assignment
-import com.sujana.domain.model.PickupRequest
+import com.sujana.feature.rider.NearbyPickup
 import com.sujana.feature.rider.RiderTasksUiState
 import com.sujana.feature.rider.RiderTasksViewModel
 import com.sujana.shared.AssignmentStatus
@@ -119,7 +119,8 @@ fun RiderTasksScreen(
                             onNavigateToTask = onNavigateToTask,
                         )
                         1 -> AvailableTab(
-                            pickups             = state.availablePickups,
+                            nearbyPickups       = state.nearbyPickups,
+                            locationUnavailable = state.locationUnavailable,
                             acceptingRequestId  = state.acceptingRequestId,
                             onAccept            = viewModel::acceptPickup,
                         )
@@ -155,23 +156,30 @@ private fun AssignedTab(
 
 @Composable
 private fun AvailableTab(
-    pickups: List<PickupRequest>,
+    nearbyPickups: List<NearbyPickup>,
+    locationUnavailable: Boolean,
     acceptingRequestId: String?,
     onAccept: (String) -> Unit,
 ) {
-    if (pickups.isEmpty()) {
-        TaskListEmpty("No pickups available", "There are no pending contributor requests near you.")
-    } else {
-        LazyColumn(
+    when {
+        locationUnavailable -> TaskListEmpty(
+            title    = "Location required",
+            subtitle = "Enable location permission so we can show pickups near you.",
+        )
+        nearbyPickups.isEmpty() -> TaskListEmpty(
+            title    = "No pickups nearby",
+            subtitle = "There are no pending requests within 10 km of your location.",
+        )
+        else -> LazyColumn(
             modifier            = Modifier.fillMaxSize(),
             contentPadding      = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            items(pickups, key = { it.id }) { request ->
+            items(nearbyPickups, key = { it.request.id }) { nearby ->
                 AvailablePickupCard(
-                    request    = request,
-                    isAccepting = acceptingRequestId == request.id,
-                    onAccept   = { onAccept(request.id) },
+                    nearby      = nearby,
+                    isAccepting = acceptingRequestId == nearby.request.id,
+                    onAccept    = { onAccept(nearby.request.id) },
                 )
             }
         }
@@ -180,10 +188,11 @@ private fun AvailableTab(
 
 @Composable
 private fun AvailablePickupCard(
-    request: PickupRequest,
+    nearby: NearbyPickup,
     isAccepting: Boolean,
     onAccept: () -> Unit,
 ) {
+    val request = nearby.request
     Card(
         modifier  = Modifier.fillMaxWidth(),
         shape     = RoundedCornerShape(Radii.card),
@@ -211,15 +220,27 @@ private fun AvailablePickupCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (request.dropoffSchoolName != null) {
-                    Spacer(Modifier.height(Spacing.xs))
+                Spacer(Modifier.height(Spacing.xs))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text     = "→ ${request.dropoffSchoolName}",
-                        style    = MaterialTheme.typography.bodyMedium,
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        text  = formatDistance(nearby.distanceMetres),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
                     )
+                    if (request.dropoffSchoolName != null) {
+                        Text(
+                            text  = " · ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text     = "→ ${request.dropoffSchoolName}",
+                            style    = MaterialTheme.typography.labelMedium,
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(Spacing.sm))
@@ -230,6 +251,11 @@ private fun AvailablePickupCard(
             }
         }
     }
+}
+
+private fun formatDistance(metres: Double): String = when {
+    metres < 1_000 -> "${metres.toInt()} m"
+    else           -> "${"%.1f".format(metres / 1_000)} km"
 }
 
 @Composable

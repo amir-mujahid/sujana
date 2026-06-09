@@ -4,6 +4,7 @@ import com.sujana.backend.db.AssignmentsTable
 import com.sujana.backend.db.RequestsTable
 import com.sujana.backend.db.SchoolsTable
 import com.sujana.backend.db.UsersTable
+import com.sujana.backend.feature.request.SchoolInfo
 import com.sujana.backend.feature.request.toRequestDto
 import com.sujana.backend.plugins.UserPrincipal
 import com.sujana.shared.AssignmentStatus
@@ -96,6 +97,32 @@ object AssignmentService {
         }
 
         rows.map { it.toDto() }
+    }
+
+    // --------------- Get single assignment (rider, contributor, dispatcher) ---------------
+
+    fun getAssignment(principal: UserPrincipal, assignmentId: String): AssignmentDto = transaction {
+        val user = userByUid(principal.uid)
+        val role = Role.valueOf(user[UsersTable.role])
+        val uuid = java.util.UUID.fromString(assignmentId)
+
+        val row = AssignmentsTable.selectAll()
+            .where { AssignmentsTable.id eq uuid }
+            .singleOrNull() ?: throw NoSuchElementException("Assignment not found")
+
+        val canAccess = when (role) {
+            Role.RIDER -> row[AssignmentsTable.riderId] == user[UsersTable.id]
+            Role.CONTRIBUTOR -> {
+                val requestRow = RequestsTable.selectAll()
+                    .where { RequestsTable.id eq row[AssignmentsTable.requestId] }
+                    .singleOrNull()
+                requestRow?.get(RequestsTable.requesterId) == user[UsersTable.id]
+            }
+            Role.MPS_DISPATCHER, Role.MPS_ADMIN, Role.SUPER_ADMIN -> true
+            else -> false
+        }
+        if (!canAccess) throw SecurityException("Access denied")
+        row.toDto()
     }
 
     // --------------- Rider: transition assignment ---------------
@@ -216,21 +243,24 @@ object AssignmentService {
         val requestRow = RequestsTable.selectAll()
             .where { RequestsTable.id eq reqId }
             .single()
-        val schoolName = requestRow[RequestsTable.dropoffSchoolId]?.let { sid ->
-            SchoolsTable.selectAll().where { SchoolsTable.id eq sid }.singleOrNull()?.get(SchoolsTable.name)
+        val schoolInfo = requestRow[RequestsTable.dropoffSchoolId]?.let { sid ->
+            SchoolsTable.selectAll().where { SchoolsTable.id eq sid }.singleOrNull()?.let { s ->
+                SchoolInfo(name = s[SchoolsTable.name], lat = s[SchoolsTable.lat], lng = s[SchoolsTable.lng])
+            }
         }
         val riderRow = UsersTable.selectAll()
             .where { UsersTable.id eq ridId }
             .single()
+        val assignmentIdStr = this[AssignmentsTable.id].toString()
 
         return AssignmentDto(
-            id           = this[AssignmentsTable.id].toString(),
+            id           = assignmentIdStr,
             requestId    = reqId.toString(),
             riderId      = ridId.toString(),
             riderName    = riderRow[UsersTable.name],
             dispatcherId = dispId?.toString(),
             status       = AssignmentStatus.valueOf(this[AssignmentsTable.status]),
-            request      = requestRow.toRequestDto(schoolName),
+            request      = requestRow.toRequestDto(schoolInfo, assignmentId = assignmentIdStr),
             assignedAt   = this[AssignmentsTable.assignedAt].toString(),
             acceptedAt   = this[AssignmentsTable.acceptedAt]?.toString(),
             collectedAt  = this[AssignmentsTable.collectedAt]?.toString(),

@@ -3,11 +3,17 @@ package com.sujana.feature.rider
 import com.sujana.domain.model.Assignment
 import com.sujana.domain.model.PickupRequest
 
+data class NearbyPickup(
+    val request: PickupRequest,
+    val distanceMetres: Double,
+)
+
 sealed class RiderTasksUiState {
     object Loading : RiderTasksUiState()
     data class Content(
         val assignments: List<Assignment>,
-        val availablePickups: List<PickupRequest> = emptyList(),
+        val nearbyPickups: List<NearbyPickup> = emptyList(),
+        val locationUnavailable: Boolean = false,
         val acceptingRequestId: String? = null,
         val acceptError: String? = null,
     ) : RiderTasksUiState()

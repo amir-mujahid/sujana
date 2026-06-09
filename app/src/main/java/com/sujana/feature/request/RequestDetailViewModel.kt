@@ -7,6 +7,7 @@ import com.sujana.core.common.AppResult
 import com.sujana.domain.usecase.request.CancelRequest
 import com.sujana.domain.usecase.request.GetRequestDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,12 @@ class RequestDetailViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            while (true) {
+                delay(POLL_MS)
+                silentRefresh()
+            }
+        }
     }
 
     fun load() {
@@ -35,6 +42,17 @@ class RequestDetailViewModel @Inject constructor(
             _uiState.value = when (val result = getRequestDetail(requestId)) {
                 is AppResult.Success -> RequestDetailUiState.Content(result.data)
                 is AppResult.Error   -> RequestDetailUiState.Error(result.error.toString())
+            }
+        }
+    }
+
+    private fun silentRefresh() {
+        val current = _uiState.value as? RequestDetailUiState.Content ?: return
+        if (current.isCancelling) return  // let the cancel coroutine own the state
+        viewModelScope.launch {
+            when (val result = getRequestDetail(requestId)) {
+                is AppResult.Success -> _uiState.value = RequestDetailUiState.Content(result.data)
+                is AppResult.Error   -> { /* keep current state on transient poll failure */ }
             }
         }
     }
@@ -51,5 +69,9 @@ class RequestDetailViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    companion object {
+        private const val POLL_MS = 10_000L
     }
 }

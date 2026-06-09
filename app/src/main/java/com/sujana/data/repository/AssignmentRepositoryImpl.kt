@@ -26,6 +26,10 @@ class AssignmentRepositoryImpl @Inject constructor(
             api.createAssignment(CreateAssignmentRequest(requestId = requestId, riderId = riderId)).toDomain()
         }.toAppResult()
 
+    override suspend fun getAssignment(id: String): AppResult<Assignment> = runCatching {
+        api.getAssignment(id).toDomain()
+    }.toAppResult()
+
     override suspend fun getAssignments(): AppResult<List<Assignment>> = runCatching {
         api.getAssignments().map { it.toDomain() }
     }.toAppResult()
@@ -67,6 +71,9 @@ private fun RequestDto.toDomain() = PickupRequest(
     pickupAddress     = pickupAddress,
     dropoffSchoolId   = dropoffSchoolId,
     dropoffSchoolName = dropoffSchoolName,
+    dropoffSchoolLat  = dropoffSchoolLat,
+    dropoffSchoolLng  = dropoffSchoolLng,
+    assignmentId      = assignmentId,
     notes             = notes,
     photoUrl          = photoUrl,
     createdAt         = createdAt,

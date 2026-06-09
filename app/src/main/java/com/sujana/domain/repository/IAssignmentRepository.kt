@@ -7,6 +7,7 @@ import com.sujana.shared.AssignmentStatus
 
 interface IAssignmentRepository {
     suspend fun createAssignment(requestId: String, riderId: String): AppResult<Assignment>
+    suspend fun getAssignment(id: String): AppResult<Assignment>
     suspend fun getAssignments(): AppResult<List<Assignment>>
     suspend fun transitionAssignment(assignmentId: String, newStatus: AssignmentStatus): AppResult<Assignment>
     suspend fun getRiders(): AppResult<List<UserProfile>>
