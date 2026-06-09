@@ -38,11 +38,13 @@ fun Application.configureFirebaseAuth() {
         environment.log.warn("FIREBASE_SERVICE_ACCOUNT_JSON not set — auth verification disabled for local dev")
     }
 
+    val isLocalDev = System.getenv("SUJANA_ENV") == "local"
+
     install(Authentication) {
         bearer(FIREBASE_AUTH) {
             authenticate { tokenCredential ->
-                if (FirebaseApp.getApps().isEmpty()) {
-                    // Dev mode: accept any token, return a stub principal
+                if (FirebaseApp.getApps().isEmpty() && isLocalDev) {
+                    // Local dev mode only (SUJANA_ENV=local): accept any token, return stub principal
                     return@authenticate UserPrincipal(
                         uid = "dev-uid",
                         email = "dev@sujana.local",

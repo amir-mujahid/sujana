@@ -31,7 +31,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
 import org.jetbrains.exposed.sql.update
-import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
 
 object NotificationService {
@@ -135,7 +135,7 @@ object NotificationService {
             it[DeviceTokensTable.userId] = userId
             it[DeviceTokensTable.token] = body.token
             it[DeviceTokensTable.platform] = body.platform
-            it[DeviceTokensTable.updatedAt] = Instant.now()
+            it[DeviceTokensTable.updatedAt] = OffsetDateTime.now()
         }
     }
 
@@ -161,7 +161,7 @@ object NotificationService {
                 (NotificationsTable.userId eq userId) and
                 (NotificationsTable.readAt eq null)
         }) {
-            it[readAt] = Instant.now()
+            it[readAt] = OffsetDateTime.now()
         }
         updated > 0
     }
@@ -171,7 +171,7 @@ object NotificationService {
             (NotificationsTable.userId eq userId) and
                 (NotificationsTable.readAt eq null)
         }) {
-            it[readAt] = Instant.now()
+            it[readAt] = OffsetDateTime.now()
         }
     }
 
@@ -226,7 +226,7 @@ object NotificationService {
                     it[NotificationsTable.title] = title
                     it[NotificationsTable.body] = body
                     it[NotificationsTable.deeplink] = deeplink
-                    it[createdAt] = Instant.now()
+                    it[createdAt] = OffsetDateTime.now()
                 }
             }
         }

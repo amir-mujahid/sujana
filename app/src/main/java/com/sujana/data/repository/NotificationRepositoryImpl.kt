@@ -1,5 +1,6 @@
 package com.sujana.data.repository
 
+import com.sujana.core.common.AppError
 import com.sujana.core.common.AppResult
 import com.sujana.core.network.SujanaApi
 import com.sujana.domain.model.Notification
@@ -18,7 +19,7 @@ class NotificationRepositoryImpl @Inject constructor(
 
     override suspend fun registerDeviceToken(token: String): AppResult<Unit> =
         runCatching { api.registerToken(RegisterTokenRequest(token)) }
-            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it) })
+            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it.toAppError()) })
 
     override suspend fun getNotifications(page: Int, pageSize: Int): AppResult<NotificationPage> =
         runCatching { api.getNotifications(page, pageSize) }
@@ -42,16 +43,16 @@ class NotificationRepositoryImpl @Inject constructor(
                         )
                     )
                 },
-                onFailure = { AppResult.Error(it) },
+                onFailure = { AppResult.Error(it.toAppError()) },
             )
 
     override suspend fun markRead(notificationId: String): AppResult<Unit> =
         runCatching { api.markNotificationRead(notificationId) }
-            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it) })
+            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it.toAppError()) })
 
     override suspend fun markAllRead(): AppResult<Unit> =
         runCatching { api.markAllNotificationsRead() }
-            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it) })
+            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it.toAppError()) })
 
     override suspend fun getPrefs(): AppResult<List<NotificationPref>> =
         runCatching { api.getNotificationPrefs() }
@@ -59,12 +60,12 @@ class NotificationRepositoryImpl @Inject constructor(
                 onSuccess = { dtos ->
                     AppResult.Success(dtos.map { NotificationPref(category = it.category, muted = it.muted) })
                 },
-                onFailure = { AppResult.Error(it) },
+                onFailure = { AppResult.Error(it.toAppError()) },
             )
 
     override suspend fun updatePref(category: String, muted: Boolean): AppResult<Unit> =
         runCatching { api.updateNotificationPref(NotificationPrefDto(category = category, muted = muted)) }
-            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it) })
+            .fold({ AppResult.Success(Unit) }, { AppResult.Error(it.toAppError()) })
 
     override suspend fun getUnreadCount(): AppResult<Int> =
         runCatching { api.getNotifications(page = 1, pageSize = 50) }
@@ -72,6 +73,9 @@ class NotificationRepositoryImpl @Inject constructor(
                 onSuccess = { resp ->
                     AppResult.Success(resp.notifications.count { it.readAt == null })
                 },
-                onFailure = { AppResult.Error(it) },
+                onFailure = { AppResult.Error(it.toAppError()) },
             )
+
+    private fun Throwable.toAppError(): AppError =
+        AppError.Unknown(message ?: "Unexpected error", this)
 }

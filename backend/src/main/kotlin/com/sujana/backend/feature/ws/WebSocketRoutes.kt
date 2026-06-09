@@ -37,13 +37,16 @@ fun Routing.webSocketRoutes() {
     }
 }
 
+private val isLocalDev: Boolean =
+    System.getenv("SUJANA_ENV") == "local"
+
 private fun resolveUserDbId(token: String): String? {
-    val firebaseUid = if (FirebaseApp.getApps().isEmpty()) {
+    val firebaseUid = if (FirebaseApp.getApps().isEmpty() && isLocalDev) {
         "dev-uid"
     } else {
         try {
             FirebaseAuth.getInstance().verifyIdToken(token).uid
-        } catch (_: FirebaseAuthException) {
+        } catch (_: Exception) {
             return null
         }
     }

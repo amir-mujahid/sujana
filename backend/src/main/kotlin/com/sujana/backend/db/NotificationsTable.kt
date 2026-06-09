@@ -1,8 +1,7 @@
 package com.sujana.backend.db
 
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.timestamp
-import java.time.Instant
+import org.jetbrains.exposed.sql.kotlin.datetime.timestampWithTimeZone
 
 object NotificationsTable : Table("notifications") {
     val id        = uuid("id").autoGenerate()
@@ -12,8 +11,8 @@ object NotificationsTable : Table("notifications") {
     val body      = text("body")
     val deeplink  = text("deeplink").nullable()
     val dataJson  = text("data_json").nullable()
-    val readAt    = timestamp("read_at").nullable()
-    val createdAt = timestamp("created_at").default(Instant.now())
+    val readAt    = timestampWithTimeZone("read_at").nullable()
+    val createdAt = timestampWithTimeZone("created_at")
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -31,7 +30,7 @@ object DeviceTokensTable : Table("device_tokens") {
     val userId    = uuid("user_id").references(UsersTable.id)
     val token     = text("token").uniqueIndex()
     val platform  = text("platform").default("android")
-    val updatedAt = timestamp("updated_at").default(Instant.now())
+    val updatedAt = timestampWithTimeZone("updated_at")
 
     override val primaryKey = PrimaryKey(id)
 }

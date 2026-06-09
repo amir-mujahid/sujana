@@ -59,7 +59,7 @@ class NotificationViewModel @Inject constructor(
                         currentPage = 1,
                     )
                 }
-                is AppResult.Error -> _uiState.value = NotificationUiState.Error(result.error.message ?: "Failed to load")
+                is AppResult.Error -> _uiState.value = NotificationUiState.Error(result.error.toString())
             }
         }
     }
@@ -114,7 +114,7 @@ class NotificationViewModel @Inject constructor(
             _prefsState.value = NotificationPrefsUiState.Loading
             when (val result = repo.getPrefs()) {
                 is AppResult.Success -> _prefsState.value = NotificationPrefsUiState.Content(result.data)
-                is AppResult.Error   -> _prefsState.value = NotificationPrefsUiState.Error(result.error.message ?: "Failed")
+                is AppResult.Error   -> _prefsState.value = NotificationPrefsUiState.Error(result.error.toString())
             }
         }
     }
