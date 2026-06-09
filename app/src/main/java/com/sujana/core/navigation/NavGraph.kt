@@ -4,13 +4,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.sujana.domain.model.User
@@ -26,6 +28,7 @@ import com.sujana.feature.home.RiderHomeScreen
 import com.sujana.feature.home.SchoolAdminHomeScreen
 import com.sujana.feature.home.SchoolStaffHomeScreen
 import com.sujana.feature.home.SuperAdminHomeScreen
+import com.sujana.feature.notification.NotificationUiState
 import com.sujana.feature.notification.NotificationViewModel
 import com.sujana.feature.notification.ui.NotificationCenterScreen
 import com.sujana.feature.notification.ui.NotificationPrefsScreen
@@ -103,6 +106,7 @@ private fun handleSujanaDeepLink(deeplink: String, navController: androidx.navig
 
 @Composable
 fun RootNavGraph(
+    navController: NavHostController,
     sessionUser: User?,
     sessionLoaded: Boolean,
 ) {
@@ -113,7 +117,6 @@ fun RootNavGraph(
         return
     }
 
-    val navController = rememberNavController()
     val startDestination = sessionUser?.homeRoute() ?: Routes.LOGIN
 
     NavHost(navController = navController, startDestination = startDestination) {
@@ -144,56 +147,97 @@ fun RootNavGraph(
 
         composable(Routes.HOME_SUPER_ADMIN) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            SuperAdminHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
+            SuperAdminHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
+            )
         }
         composable(Routes.HOME_MPS_ADMIN) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            MpsAdminHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
+            MpsAdminHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
+            )
         }
         composable(Routes.HOME_MPS_DISPATCHER) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
             MpsDispatcherHomeScreen(
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
                 onNavigateToDispatchQueue = { navController.navigate(Routes.DISPATCH_QUEUE) },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
             )
         }
         composable(Routes.HOME_SCHOOL_ADMIN) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            SchoolAdminHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
+            SchoolAdminHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
+            )
         }
         composable(Routes.HOME_SCHOOL_STAFF) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
-            SchoolStaffHomeScreen(onLogout = {
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-            })
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
+            SchoolStaffHomeScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
+            )
         }
         composable(Routes.HOME_RIDER) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
             RiderHomeScreen(
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
-                onNavigateToMyTasks = { navController.navigate(Routes.RIDER_TASKS) },
+                onNavigateToMyTasks       = { navController.navigate(Routes.RIDER_TASKS) },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
             )
         }
 
         // --- Contributor routes ---
         composable(Routes.HOME_CONTRIBUTOR) { backStackEntry ->
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
+            val notifVm: NotificationViewModel = hiltViewModel(backStackEntry)
+            val notifState by notifVm.uiState.collectAsState()
+            val unreadCount = (notifState as? NotificationUiState.Content)?.unreadCount ?: 0
             ContributorHomeScreen(
                 onLogout = {
                     authViewModel.logout()
@@ -201,6 +245,8 @@ fun RootNavGraph(
                 },
                 onNavigateToMyRequests    = { navController.navigate(Routes.MY_REQUESTS) },
                 onNavigateToCreateRequest = { navController.navigate(Routes.CREATE_REQUEST) },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                unreadCount               = unreadCount,
             )
         }
         composable(Routes.MY_REQUESTS) {

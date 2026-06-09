@@ -35,6 +35,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -62,7 +63,14 @@ fun RiderTasksScreen(
     viewModel: RiderTasksViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val navigateToTask by viewModel.navigateToTask.collectAsState()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    LaunchedEffect(navigateToTask) {
+        val id = navigateToTask ?: return@LaunchedEffect
+        viewModel.consumeNavigateToTask()
+        onNavigateToTask(id)
+    }
 
     Scaffold(
         topBar = {

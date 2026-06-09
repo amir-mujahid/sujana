@@ -26,7 +26,6 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -42,8 +41,15 @@ class RiderTasksViewModel @Inject constructor(
 
     private val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
+    private var cachedLocation: android.location.Location? = null
+
     private val _uiState = MutableStateFlow<RiderTasksUiState>(RiderTasksUiState.Loading)
     val uiState: StateFlow<RiderTasksUiState> = _uiState.asStateFlow()
+
+    private val _navigateToTask = MutableStateFlow<String?>(null)
+    val navigateToTask: StateFlow<String?> = _navigateToTask.asStateFlow()
+
+    fun consumeNavigateToTask() { _navigateToTask.value = null }
 
     init {
         load()
@@ -55,10 +61,19 @@ class RiderTasksViewModel @Inject constructor(
         }
         viewModelScope.launch {
             webSocketManager.events.collect { event ->
-                if (event.event == WsEventType.ASSIGNMENT_STATUS_CHANGED ||
-                    event.event == WsEventType.REQUEST_STATUS_CHANGED
-                ) {
-                    silentRefresh()
+                when (event.event) {
+                    WsEventType.ASSIGNMENT_STATUS_CHANGED -> {
+                        val current = _uiState.value as? RiderTasksUiState.Content
+                        val newStatus = runCatching { AssignmentStatus.valueOf(event.status) }.getOrNull()
+                        if (current != null && newStatus != null) {
+                            val updated = current.assignments.map { a ->
+                                if (a.id == event.entityId) a.copy(status = newStatus) else a
+                            }
+                            _uiState.value = current.copy(assignments = updated)
+                        }
+                        silentRefreshAssignmentsOnly()
+                    }
+                    WsEventType.REQUEST_STATUS_CHANGED -> silentRefreshAssignmentsOnly()
                 }
             }
         }
@@ -150,12 +165,36 @@ class RiderTasksViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = current.copy(acceptingRequestId = requestId, acceptError = null)
             when (val result = selfAssignRequest(requestId)) {
-                is AppResult.Success -> load()
-                is AppResult.Error   -> _uiState.value = current.copy(
+                is AppResult.Success -> {
+                    result.data.assignmentId?.let { _navigateToTask.value = it }
+                    load()
+                }
+                is AppResult.Error -> _uiState.value = current.copy(
                     acceptingRequestId = null,
                     acceptError        = result.error.toString(),
                 )
             }
+        }
+    }
+
+    private fun silentRefreshAssignmentsOnly() {
+        val current = _uiState.value as? RiderTasksUiState.Content ?: return
+        if (current.acceptingRequestId != null) return
+        viewModelScope.launch {
+            val newAssignments = when (val r = getRiderTasks()) {
+                is AppResult.Success -> r.data.filter { it.status != AssignmentStatus.CANCELLED }
+                is AppResult.Error   -> return@launch
+            }
+            val loc = cachedLocation
+            val newNearby = if (loc != null) {
+                when (val r = getNearbyPickups(loc.latitude, loc.longitude)) {
+                    is AppResult.Success -> r.data
+                        .map { req -> NearbyPickup(req, haversineMetres(loc.latitude, loc.longitude, req.pickupLat, req.pickupLng)) }
+                        .sortedBy { it.distanceMetres }
+                    is AppResult.Error -> current.nearbyPickups
+                }
+            } else current.nearbyPickups
+            _uiState.value = current.copy(assignments = newAssignments, nearbyPickups = newNearby)
         }
     }
 
@@ -164,7 +203,10 @@ class RiderTasksViewModel @Inject constructor(
         suspendCancellableCoroutine { cont ->
             try {
                 fusedClient.lastLocation
-                    .addOnSuccessListener { loc -> cont.resume(loc) }
+                    .addOnSuccessListener { loc ->
+                        if (loc != null) cachedLocation = loc
+                        cont.resume(loc)
+                    }
                     .addOnFailureListener { cont.resume(null) }
             } catch (_: SecurityException) {
                 cont.resume(null)

@@ -186,12 +186,12 @@ object RequestService {
         }
 
         val now = OffsetDateTime.now()
-        AssignmentsTable.insert {
+        val newAssignmentId = AssignmentsTable.insert {
             it[AssignmentsTable.requestId]  = uuid
             it[AssignmentsTable.riderId]    = rider[UsersTable.id]
             it[AssignmentsTable.status]     = AssignmentStatus.ASSIGNED.name
             it[AssignmentsTable.assignedAt] = now
-        }
+        }[AssignmentsTable.id]
 
         RequestsTable.update({ RequestsTable.id eq uuid }) {
             it[RequestsTable.status]    = RequestStatus.ASSIGNED.name
@@ -199,7 +199,10 @@ object RequestService {
         }
 
         val updated = RequestsTable.selectAll().where { RequestsTable.id eq uuid }.single()
-        updated.toRequestDto(schoolInfoFor(updated[RequestsTable.dropoffSchoolId]))
+        updated.toRequestDto(
+            schoolInfoFor(updated[RequestsTable.dropoffSchoolId]),
+            assignmentId = newAssignmentId.toString(),
+        )
     }
 
     fun listSchools(): List<SchoolDto> = transaction {

@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sujana.core.common.AppResult
+import com.sujana.core.websocket.WebSocketManager
 import com.sujana.data.repository.DirectionsRepository
 import com.sujana.domain.model.Assignment
 import com.sujana.domain.repository.IAssignmentRepository
 import com.sujana.domain.repository.ITrackingRepository
 import com.sujana.shared.AssignmentStatus
+import com.sujana.shared.WsEventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,7 @@ class LiveTrackingViewModel @Inject constructor(
     private val trackingRepository: ITrackingRepository,
     private val assignmentRepository: IAssignmentRepository,
     private val directionsRepository: DirectionsRepository,
+    private val webSocketManager: WebSocketManager,
 ) : ViewModel() {
 
     val assignmentId: String = checkNotNull(savedStateHandle["assignmentId"])
@@ -35,6 +38,7 @@ class LiveTrackingViewModel @Inject constructor(
     init {
         loadAssignment()
         observeTracking()
+        observeWsEvents()
     }
 
     private fun loadAssignment() {
@@ -65,6 +69,21 @@ class LiveTrackingViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun observeWsEvents() {
+        viewModelScope.launch {
+            webSocketManager.events.collect { event ->
+                if (event.event == WsEventType.ASSIGNMENT_STATUS_CHANGED && event.entityId == assignmentId) {
+                    val newStatus = runCatching { AssignmentStatus.valueOf(event.status) }.getOrNull()
+                        ?: return@collect
+                    val current = _uiState.value.assignment ?: return@collect
+                    // Optimistic update: apply status immediately, then refresh for full data
+                    _uiState.update { it.copy(assignment = current.copy(status = newStatus)) }
+                    loadAssignment()
+                }
+            }
+        }
     }
 
     private fun fetchRoute(

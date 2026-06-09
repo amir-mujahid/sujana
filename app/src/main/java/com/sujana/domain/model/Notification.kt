@@ -8,8 +8,9 @@ data class Notification(
     val deeplink: String?,
     val readAt: String?,
     val createdAt: String,
-    val isRead: Boolean = readAt != null,
-)
+) {
+    val isRead: Boolean get() = readAt != null
+}
 
 data class NotificationPage(
     val notifications: List<Notification>,

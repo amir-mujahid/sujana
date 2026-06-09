@@ -1,9 +1,9 @@
 package com.sujana.backend.feature.notification
 
 import com.google.firebase.FirebaseApp
+import com.google.firebase.messaging.AndroidConfig
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
-import com.google.firebase.messaging.Notification
 import com.sujana.backend.db.AssignmentsTable
 import com.sujana.backend.db.DeviceTokensTable
 import com.sujana.backend.db.NotificationPrefsTable
@@ -78,7 +78,7 @@ object NotificationService {
         }
     }
 
-    fun onNewAssignment(assignmentId: UUID, riderId: UUID, requestId: UUID) {
+    fun onNewAssignment(assignmentId: UUID, riderId: UUID) {
         scope.launch {
             notify(
                 recipientIds = listOf(riderId),
@@ -93,21 +93,29 @@ object NotificationService {
 
     fun onAssignmentStatusChanged(
         assignmentId: UUID,
+        requestId: UUID,
         newStatus: AssignmentStatus,
         riderId: UUID,
         requesterId: UUID,
     ) {
         val (title, body) = assignmentStatusCopy(newStatus)
         scope.launch {
-            val affectedIds = listOf(riderId, requesterId)
+            // Rider sees the assignment; requester sees their request
             notify(
-                recipientIds = affectedIds,
+                recipientIds = listOf(riderId),
                 category = NotificationCategory.ASSIGNMENT_UPDATE,
                 title = title,
                 body = body,
                 deeplink = "sujana://assignment/$assignmentId",
             )
-            broadcastAssignmentEvent(assignmentId, newStatus, affectedIds.map { it.toString() })
+            notify(
+                recipientIds = listOf(requesterId),
+                category = NotificationCategory.ASSIGNMENT_UPDATE,
+                title = title,
+                body = body,
+                deeplink = "sujana://request/$requestId",
+            )
+            broadcastAssignmentEvent(assignmentId, newStatus, listOf(riderId.toString(), requesterId.toString()))
         }
     }
 
@@ -144,7 +152,8 @@ object NotificationService {
         val rows = NotificationsTable.selectAll()
             .where { NotificationsTable.userId eq userId }
             .orderBy(NotificationsTable.createdAt, SortOrder.DESC)
-            .limit(pageSize + 1, offset.toLong())
+            .limit(pageSize + 1)
+            .offset(offset.toLong())
             .toList()
         val hasMore = rows.size > pageSize
         NotificationPageResponse(
@@ -198,7 +207,7 @@ object NotificationService {
 
     // ── Internals ──────────────────────────────────────────────────────────
 
-    private suspend fun notify(
+    private fun notify(
         recipientIds: List<UUID>,
         category: NotificationCategory,
         title: String,
@@ -244,14 +253,16 @@ object NotificationService {
                 FirebaseMessaging.getInstance().send(
                     Message.builder()
                         .setToken(token)
-                        .setNotification(
-                            Notification.builder()
-                                .setTitle(title)
-                                .setBody(body)
-                                .build(),
+                        .setAndroidConfig(
+                            AndroidConfig.builder()
+                                .setPriority(AndroidConfig.Priority.HIGH)
+                                .build()
                         )
-                        .apply { if (deeplink != null) putData("deeplink", deeplink) }
+                        // Data-only: onMessageReceived fires regardless of app state
+                        .putData("title", title)
+                        .putData("body", body)
                         .putData("category", category.name)
+                        .apply { if (deeplink != null) putData("deeplink", deeplink) }
                         .build(),
                 )
             } catch (_: Exception) {

@@ -27,7 +27,7 @@ class SujanaApp : Application() {
             NotificationChannel(
                 NOTIFICATIONS_CHANNEL_ID,
                 "Updates",
-                NotificationManager.IMPORTANCE_DEFAULT,
+                NotificationManager.IMPORTANCE_HIGH,
             ).apply { description = "Request and assignment status updates" }
         )
     }

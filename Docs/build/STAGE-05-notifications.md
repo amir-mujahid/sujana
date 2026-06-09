@@ -106,8 +106,8 @@ deep-links to the relevant screen.
   `notifyDispatchersNewRequest`. All called from `RequestRoutes.kt` / `AssignmentRoutes.kt`
   after the service call returns (outside the Exposed transaction).
 - **Notification channels/categories created:** `SujanaApp.NOTIFICATIONS_CHANNEL_ID =
-  "sujana_notifications"` (IMPORTANCE_DEFAULT). Tracking channel unchanged.
-  Categories in `NotificationCategory` enum: REQUEST_UPDATE, ASSIGNMENT_UPDATE,
+  "sujana_notifications"` (IMPORTANCE_HIGH — heads-up banners require HIGH). Tracking channel
+  unchanged. Categories in `NotificationCategory` enum: REQUEST_UPDATE, ASSIGNMENT_UPDATE,
   SCHOOL_COLLECTION, DISPATCH_ALERT, ADMIN_SUMMARY, SYSTEM.
 - **Deep-link scheme/route table:** `sujana://request/{id}` → REQUEST_DETAIL composable;
   `sujana://assignment/{id}` → TASK_DETAIL composable; `sujana://dispatch` → DISPATCH_QUEUE;
@@ -118,6 +118,53 @@ deep-links to the relevant screen.
   auth is sent as `Authorization: Bearer <token>` header on the upgrade request.
 - **Dev mode WS auth:** Backend `WebSocketRoutes.resolveUserDbId()` maps Firebase uid
   `"dev-uid"` to the Postgres user row when no Firebase app is initialised.
+
+### Critical implementation notes (discovered post-initial-build)
+
+- **FCM MUST be data-only — never add `setNotification()`.**
+  FCM "notification+data" messages are displayed by the system in background; `onMessageReceived`
+  is NOT called, so the deep-link in `message.data["deeplink"]` is never read and tapping the
+  banner opens the home screen. Data-only messages always deliver to `onMessageReceived` in all
+  app states. `SujanaMessagingService` reads `data["title"]`/`data["body"]` with a fallback to
+  `notification.*`. `AndroidConfig.Priority.HIGH` + `NotificationCompat.PRIORITY_HIGH` ensure
+  heads-up banners still appear.
+
+- **Two WS event types for status changes — both must be handled.**
+  When the rider transitions an assignment (ACCEPTED, COLLECTED, etc.), the backend emits
+  `ASSIGNMENT_STATUS_CHANGED`. When a dispatcher or route logic changes the request directly, it
+  emits `REQUEST_STATUS_CHANGED`. Any screen showing request status (e.g. `RequestDetailViewModel`)
+  must listen to **both** and mirror assignment status using `AssignmentStatus.toRequestStatus()`:
+  ASSIGNED/ACCEPTED→ASSIGNED, COLLECTED→COLLECTED, DELIVERED→DELIVERED, COMPLETED→COMPLETED,
+  CANCELLED→PENDING.
+
+- **Role-specific deep links for notifications — do not send `assignment/` to contributors.**
+  `onAssignmentStatusChanged` sends `sujana://assignment/{assignmentId}` to the rider and
+  `sujana://request/{requestId}` to the requester. Sending the assignment link to the contributor
+  opens the rider's Task Detail screen which rejects them as unauthorised.
+
+- **`Notification.isRead` must be a computed property.**
+  Kotlin data class default expressions (`val isRead: Boolean = readAt != null`) are only
+  evaluated at construction time; `copy(readAt = "now")` leaves `isRead == false`. Fix: declare
+  `val isRead: Boolean get() = readAt != null` (a property getter, not a constructor default).
+
+- **`RequestService.acceptRequest()` returns `assignmentId`.**
+  The generated assignment ID is captured via `AssignmentsTable.insert { ... }[AssignmentsTable.id]`
+  and passed to `toRequestDto(assignmentId = ...)`. Callers (`RiderTasksViewModel.acceptPickup`)
+  can use `result.data.assignmentId` to navigate directly to the new task detail screen.
+
+- **`silentRefreshAssignmentsOnly()` vs `silentRefresh()` in `RiderTasksViewModel`.**
+  WS-triggered updates use `silentRefreshAssignmentsOnly()` (no GPS call — uses cached location).
+  The 10 s poll uses `silentRefresh()` (fresh GPS). This eliminates the 1–2 s fused-location
+  wait on every status-change event. `cachedLocation` is updated whenever `getRiderLocation()`
+  returns non-null.
+
+- **Notification badge VM is per home-screen back-stack entry.**
+  Each home screen composable creates its own `NotificationViewModel` (scoped to that entry)
+  via `hiltViewModel(backStackEntry)`. It loads unread count on entry creation. It does NOT
+  share an instance with `NotificationCenterScreen`'s VM. The badge may be briefly stale after
+  visiting the notification center; it resets on the next home-screen VM recreation (re-login
+  or back-stack pop + re-push). Acceptable for MVP; fix with a shared Activity-scoped VM or
+  `ON_RESUME` reload if needed in a later stage.
 
 ## Resume / progress
 _Stage complete._

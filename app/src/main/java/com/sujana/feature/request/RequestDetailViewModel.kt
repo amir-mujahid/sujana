@@ -7,6 +7,8 @@ import com.sujana.core.common.AppResult
 import com.sujana.core.websocket.WebSocketManager
 import com.sujana.domain.usecase.request.CancelRequest
 import com.sujana.domain.usecase.request.GetRequestDetail
+import com.sujana.shared.AssignmentStatus
+import com.sujana.shared.RequestStatus
 import com.sujana.shared.WsEventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -39,8 +41,24 @@ class RequestDetailViewModel @Inject constructor(
         }
         viewModelScope.launch {
             webSocketManager.events.collect { event ->
-                if (event.event == WsEventType.REQUEST_STATUS_CHANGED && event.entityId == requestId) {
-                    silentRefresh()
+                val current = _uiState.value as? RequestDetailUiState.Content ?: return@collect
+                when (event.event) {
+                    WsEventType.REQUEST_STATUS_CHANGED -> {
+                        if (event.entityId != requestId) return@collect
+                        val newStatus = runCatching { RequestStatus.valueOf(event.status) }.getOrNull()
+                        if (newStatus != null) {
+                            _uiState.value = current.copy(request = current.request.copy(status = newStatus))
+                        }
+                        silentRefresh()
+                    }
+                    WsEventType.ASSIGNMENT_STATUS_CHANGED -> {
+                        // Mirror assignment transitions → request status (matches backend mirrorStatus logic)
+                        if (event.entityId != current.request.assignmentId) return@collect
+                        val mirrored = runCatching { AssignmentStatus.valueOf(event.status) }
+                            .getOrNull()?.toRequestStatus() ?: return@collect
+                        _uiState.value = current.copy(request = current.request.copy(status = mirrored))
+                        silentRefresh()
+                    }
                 }
             }
         }
@@ -84,4 +102,13 @@ class RequestDetailViewModel @Inject constructor(
     companion object {
         private const val POLL_MS = 10_000L
     }
+}
+
+private fun AssignmentStatus.toRequestStatus(): RequestStatus? = when (this) {
+    AssignmentStatus.ASSIGNED,
+    AssignmentStatus.ACCEPTED  -> RequestStatus.ASSIGNED
+    AssignmentStatus.COLLECTED -> RequestStatus.COLLECTED
+    AssignmentStatus.DELIVERED -> RequestStatus.DELIVERED
+    AssignmentStatus.COMPLETED -> RequestStatus.COMPLETED
+    AssignmentStatus.CANCELLED -> RequestStatus.PENDING
 }

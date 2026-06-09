@@ -2,7 +2,6 @@ package com.sujana.feature.notification
 
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.TaskStackBuilder
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
@@ -32,10 +31,9 @@ class SujanaMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.notification?.title ?: return
-        val body = message.notification?.body ?: return
+        val title = message.data["title"] ?: message.notification?.title ?: return
+        val body = message.data["body"] ?: message.notification?.body ?: return
         val deeplink = message.data["deeplink"]
-
         showNotification(title, body, deeplink)
     }
 
@@ -43,16 +41,22 @@ class SujanaMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(NotificationManager::class.java)
 
         val pendingIntent = if (deeplink != null) {
-            val intent = Intent(Intent.ACTION_VIEW, deeplink.toUri(), this, MainActivity::class.java)
-            TaskStackBuilder.create(this).run {
-                addNextIntentWithParentStack(intent)
-                getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val intent = Intent(Intent.ACTION_VIEW, deeplink.toUri(), this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
+            PendingIntent.getActivity(
+                this,
+                deeplink.hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         } else {
             PendingIntent.getActivity(
                 this,
                 0,
-                Intent(this, MainActivity::class.java),
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+                },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
@@ -64,7 +68,7 @@ class SujanaMessagingService : FirebaseMessagingService() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         notificationManager.notify(Random.nextInt(), notification)

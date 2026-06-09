@@ -6,7 +6,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -19,10 +25,26 @@ import com.sujana.core.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun StubHomeScreen(role: String, onLogout: () -> Unit) {
+internal fun StubHomeScreen(
+    role: String,
+    onLogout: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    unreadCount: Int = 0,
+) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("I-Sujana") })
+            TopAppBar(
+                title = { Text("I-Sujana") },
+                actions = {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        BadgedBox(badge = {
+                            if (unreadCount > 0) Badge { Text(if (unreadCount > 99) "99+" else "$unreadCount") }
+                        }) {
+                            Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+                        }
+                    }
+                },
+            )
         },
     ) { innerPadding ->
         Column(

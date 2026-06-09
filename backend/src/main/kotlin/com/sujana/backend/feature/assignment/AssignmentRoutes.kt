@@ -31,7 +31,6 @@ fun Route.assignmentRoutes() {
             NotificationService.onNewAssignment(
                 assignmentId = UUID.fromString(dto.id),
                 riderId = UUID.fromString(dto.riderId),
-                requestId = UUID.fromString(dto.requestId),
             )
             call.respond(HttpStatusCode.Created, dto)
         }
@@ -61,6 +60,7 @@ fun Route.assignmentRoutes() {
             if (requesterId != null) {
                 NotificationService.onAssignmentStatusChanged(
                     assignmentId = UUID.fromString(dto.id),
+                    requestId = UUID.fromString(dto.requestId),
                     newStatus = dto.status,
                     riderId = UUID.fromString(dto.riderId),
                     requesterId = requesterId,
