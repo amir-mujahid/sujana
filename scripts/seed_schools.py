@@ -34,6 +34,11 @@ V3_DELETE_IDS = [
 ]
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_MIRRORS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
 OVERPASS_QUERY = """
 [out:json][timeout:120];
 area["ISO3166-1"="MY"][admin_level=2]->.malaysia;
@@ -127,24 +132,44 @@ def write_sql(schools: list[dict], path: Path) -> None:
 
 
 def fetch_schools() -> list[dict]:
-    """Query OSM Overpass API; retry once on HTTP 429."""
+    """Query OSM Overpass API; tries multiple mirrors and retries on 429/406."""
     import time
     print("Querying Overpass API... (this may take 30-60s)")
-    for attempt in range(2):
-        resp = requests.post(
-            OVERPASS_URL,
-            data={"data": OVERPASS_QUERY},
-            timeout=180,
-        )
-        if resp.status_code == 429 and attempt == 0:
-            print("Rate limited — waiting 30 s before retry...")
-            time.sleep(30)
-            continue
-        resp.raise_for_status()
-        break
-    elements = resp.json()["elements"]
-    print(f"Fetched {len(elements)} elements.")
-    return elements
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+        "User-Agent": "ISujanaSchoolSeeder/1.0 (educational project)",
+    }
+    for mirror in OVERPASS_MIRRORS:
+        print(f"Trying mirror: {mirror}")
+        for attempt in range(2):
+            try:
+                resp = requests.post(
+                    mirror,
+                    data=f"data={requests.utils.quote(OVERPASS_QUERY)}",
+                    headers=headers,
+                    timeout=180,
+                )
+                if resp.status_code == 429 and attempt == 0:
+                    print("Rate limited — waiting 30 s before retry...")
+                    time.sleep(30)
+                    continue
+                if resp.status_code in (406, 429, 500, 502, 503, 504) and attempt == 0:
+                    print(f"HTTP {resp.status_code} — waiting 10 s before retry...")
+                    time.sleep(10)
+                    continue
+                resp.raise_for_status()
+                elements = resp.json()["elements"]
+                print(f"Fetched {len(elements)} elements.")
+                return elements
+            except requests.exceptions.RequestException as e:
+                if attempt == 0:
+                    print(f"Error: {e} — retrying...")
+                    time.sleep(10)
+                else:
+                    print(f"Mirror {mirror} failed: {e}")
+                    break
+    raise RuntimeError("All Overpass API mirrors failed.")
 
 
 if __name__ == "__main__":
