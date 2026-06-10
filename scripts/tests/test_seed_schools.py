@@ -186,3 +186,8 @@ class TestWriteSql:
     def test_deterministic_across_two_calls(self):
         schools = [{"name": "SMK Test", "lat": 3.0, "lng": 101.0}]
         assert self._write(schools) == self._write(schools)
+
+    def test_empty_schools_no_insert_block(self):
+        content = self._write([])
+        assert "INSERT INTO schools" not in content
+        assert "ON CONFLICT" not in content
