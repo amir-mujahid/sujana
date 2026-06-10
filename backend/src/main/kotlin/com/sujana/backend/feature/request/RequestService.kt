@@ -18,6 +18,7 @@ import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -36,16 +37,38 @@ object RequestService {
             .where { UsersTable.firebaseUid eq principal.uid }
             .singleOrNull() ?: error("User not found")
 
+        val role = Role.valueOf(user[UsersTable.role])
+
+        // Derive requesterSchoolId for SCHOOL-type requests from the user's tenantId
+        val resolvedSchoolId: UUID? = if (body.type == RequestType.SCHOOL) {
+            if (role != Role.SCHOOL_ADMIN && role != Role.SCHOOL_STAFF) {
+                throw SecurityException("Only school roles may submit SCHOOL requests")
+            }
+            val tenantId = user[UsersTable.tenantId]
+                ?: throw IllegalStateException("School user has no tenantId configured")
+            SchoolsTable.selectAll()
+                .where { SchoolsTable.tenantId eq tenantId }
+                .firstOrNull()
+                ?.get(SchoolsTable.id)
+                ?: throw IllegalStateException("No school found for this user's tenant")
+        } else {
+            null
+        }
+
+        val scheduledForTs = body.scheduledFor?.let { java.time.OffsetDateTime.parse(it) }
+
         val newId = RequestsTable.insert {
-            it[type]            = body.type.name
-            it[requesterId]     = user[UsersTable.id]
-            it[status]          = RequestStatus.PENDING.name
-            it[pickupLat]       = body.pickupLat
-            it[pickupLng]       = body.pickupLng
-            it[pickupAddress]   = body.pickupAddress
-            it[dropoffSchoolId] = body.dropoffSchoolId?.let { sid -> UUID.fromString(sid) }
-            it[notes]           = body.notes
-            it[photoUrl]        = body.photoUrl
+            it[type]              = body.type.name
+            it[requesterId]       = user[UsersTable.id]
+            it[status]            = RequestStatus.PENDING.name
+            it[pickupLat]         = body.pickupLat
+            it[pickupLng]         = body.pickupLng
+            it[pickupAddress]     = body.pickupAddress
+            it[dropoffSchoolId]   = body.dropoffSchoolId?.let { sid -> UUID.fromString(sid) }
+            it[notes]             = body.notes
+            it[photoUrl]          = body.photoUrl
+            it[scheduledFor]      = scheduledForTs
+            it[requesterSchoolId] = resolvedSchoolId
         }[RequestsTable.id]
 
         val row = RequestsTable.selectAll().where { RequestsTable.id eq newId }.single()
@@ -59,8 +82,46 @@ object RequestService {
 
         val role = Role.valueOf(user[UsersTable.role])
         val query = when (role) {
-            Role.MPS_DISPATCHER, Role.MPS_ADMIN, Role.SUPER_ADMIN ->
+            Role.SUPER_ADMIN ->
                 RequestsTable.selectAll()
+
+            Role.MPS_DISPATCHER, Role.MPS_ADMIN -> {
+                // Scope to SCHOOL requests from schools in the same tenant, plus CONTRIBUTOR requests (all)
+                val tenantId = user[UsersTable.tenantId]
+                if (tenantId == null) {
+                    RequestsTable.selectAll()
+                } else {
+                    val schoolIdsInTenant = SchoolsTable.selectAll()
+                        .where { SchoolsTable.tenantId eq tenantId }
+                        .map { it[SchoolsTable.id] }
+                    if (schoolIdsInTenant.isEmpty()) {
+                        RequestsTable.selectAll().where { RequestsTable.type eq RequestType.CONTRIBUTOR.name }
+                    } else {
+                        RequestsTable.selectAll().where {
+                            (RequestsTable.type eq RequestType.CONTRIBUTOR.name) or
+                                (RequestsTable.requesterSchoolId inList schoolIdsInTenant)
+                        }
+                    }
+                }
+            }
+
+            Role.SCHOOL_ADMIN -> {
+                // All requests submitted by anyone in their school
+                val tenantId = user[UsersTable.tenantId]
+                if (tenantId == null) {
+                    RequestsTable.selectAll().where { RequestsTable.requesterId eq user[UsersTable.id] }
+                } else {
+                    val schoolId = SchoolsTable.selectAll()
+                        .where { SchoolsTable.tenantId eq tenantId }
+                        .firstOrNull()?.get(SchoolsTable.id)
+                    if (schoolId == null) {
+                        RequestsTable.selectAll().where { RequestsTable.requesterId eq user[UsersTable.id] }
+                    } else {
+                        RequestsTable.selectAll().where { RequestsTable.requesterSchoolId eq schoolId }
+                    }
+                }
+            }
+
             else ->
                 RequestsTable.selectAll().where { RequestsTable.requesterId eq user[UsersTable.id] }
         }.orderBy(RequestsTable.createdAt, SortOrder.DESC)
@@ -82,7 +143,14 @@ object RequestService {
         val isOwner = row[RequestsTable.requesterId] == user[UsersTable.id]
         val canViewAll = role == Role.MPS_DISPATCHER || role == Role.MPS_ADMIN ||
                 role == Role.SUPER_ADMIN || role == Role.RIDER
-        if (!isOwner && !canViewAll) throw SecurityException("Access denied")
+        val isSchoolAdmin = role == Role.SCHOOL_ADMIN && run {
+            val tenantId = user[UsersTable.tenantId] ?: return@run false
+            val schoolId = SchoolsTable.selectAll()
+                .where { SchoolsTable.tenantId eq tenantId }
+                .firstOrNull()?.get(SchoolsTable.id) ?: return@run false
+            row[RequestsTable.requesterSchoolId] == schoolId
+        }
+        if (!isOwner && !canViewAll && !isSchoolAdmin) throw SecurityException("Access denied")
 
         row.toRequestDto(
             school       = schoolInfoFor(row[RequestsTable.dropoffSchoolId]),
