@@ -54,6 +54,24 @@ class TestIsSecondary:
     def test_case_insensitive_sk(self):
         assert is_secondary("sk pandan indah") is False
 
+    def test_sekolah_kebangsaan_excluded(self):
+        assert is_secondary("Sekolah Kebangsaan Taman Melati") is False
+
+    def test_srk_excluded(self):
+        assert is_secondary("SRK Bukit Jalil") is False
+
+    def test_taska_excluded(self):
+        assert is_secondary("Taska Permata Sentosa") is False
+
+    def test_sma_included(self):
+        assert is_secondary("SMA Johor") is True
+
+    def test_sm_teknik_included(self):
+        assert is_secondary("SM Teknik Kuantan") is True
+
+    def test_sm_agama_included(self):
+        assert is_secondary("SM Agama Kuala Lumpur") is True
+
 
 class TestExtractCoords:
     def test_node_returns_lat_lon(self):
