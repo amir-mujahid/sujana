@@ -4,6 +4,8 @@ from datetime import date
 import uuid
 from pathlib import Path
 
+import requests
+
 NAMESPACE = uuid.NAMESPACE_URL
 
 INCLUDE_PREFIXES = [
@@ -30,6 +32,16 @@ V3_DELETE_IDS = [
     "a1b2c3d4-0000-0000-0000-000000000003",  # SK Ara Damansara   (primary)
     "a1b2c3d4-0000-0000-0000-000000000004",  # SK Taman Megah     (primary)
 ]
+
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_QUERY = """
+[out:json][timeout:120];
+area["ISO3166-1"="MY"][admin_level=2]->.malaysia;
+(
+  nwr["amenity"="school"](area.malaysia);
+);
+out center tags;
+"""
 
 
 def is_secondary(name: str) -> bool:
@@ -112,3 +124,32 @@ def write_sql(schools: list[dict], path: Path) -> None:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(sql, encoding="utf-8")
+
+
+def fetch_schools() -> list[dict]:
+    """Query OSM Overpass API; retry once on HTTP 429."""
+    import time
+    print("Querying Overpass API... (this may take 30-60s)")
+    for attempt in range(2):
+        resp = requests.post(
+            OVERPASS_URL,
+            data={"data": OVERPASS_QUERY},
+            timeout=180,
+        )
+        if resp.status_code == 429 and attempt == 0:
+            print("Rate limited — waiting 30 s before retry...")
+            time.sleep(30)
+            continue
+        resp.raise_for_status()
+        break
+    elements = resp.json()["elements"]
+    print(f"Fetched {len(elements)} elements.")
+    return elements
+
+
+if __name__ == "__main__":
+    elements = fetch_schools()
+    schools = process(elements)
+    print(f"After filter + dedup: {len(schools)} secondary schools.")
+    write_sql(schools, OUTPUT_PATH)
+    print(f"Written: {OUTPUT_PATH}")
