@@ -23,6 +23,8 @@ fun ResultRow.toRequestDto(school: SchoolInfo?, assignmentId: String? = null) = 
     assignmentId      = assignmentId,
     notes             = this[RequestsTable.notes],
     photoUrl          = this[RequestsTable.photoUrl],
+    scheduledFor      = this[RequestsTable.scheduledFor]?.toString(),
+    requesterSchoolId = this[RequestsTable.requesterSchoolId]?.toString(),
     createdAt         = this[RequestsTable.createdAt].toString(),
     updatedAt         = this[RequestsTable.updatedAt].toString(),
 )

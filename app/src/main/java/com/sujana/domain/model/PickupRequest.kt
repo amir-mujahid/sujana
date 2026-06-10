@@ -18,6 +18,8 @@ data class PickupRequest(
     val assignmentId: String? = null,
     val notes: String?,
     val photoUrl: String?,
+    val scheduledFor: String? = null,
+    val requesterSchoolId: String? = null,
     val createdAt: String,
     val updatedAt: String,
 )

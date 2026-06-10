@@ -28,6 +28,10 @@ import com.sujana.feature.home.RiderHomeScreen
 import com.sujana.feature.home.SchoolAdminHomeScreen
 import com.sujana.feature.home.SchoolStaffHomeScreen
 import com.sujana.feature.home.SuperAdminHomeScreen
+import com.sujana.feature.school.SchoolRequestViewModel
+import com.sujana.feature.school.SchoolRequestsViewModel
+import com.sujana.feature.school.ui.SchoolRequestScreen
+import com.sujana.feature.school.ui.SchoolRequestsScreen
 import com.sujana.feature.notification.NotificationUiState
 import com.sujana.feature.notification.NotificationViewModel
 import com.sujana.feature.notification.ui.NotificationCenterScreen
@@ -61,6 +65,10 @@ private object Routes {
     const val MY_REQUESTS          = "contributor/requests"
     const val CREATE_REQUEST       = "contributor/requests/create"
     const val REQUEST_DETAIL       = "contributor/requests/{requestId}"
+    // School sub-routes
+    const val SCHOOL_REQUESTS      = "school/requests"
+    const val SCHOOL_CREATE_REQUEST = "school/requests/create"
+    const val SCHOOL_REQUEST_DETAIL = "school/requests/{requestId}"
     // Dispatcher sub-routes
     const val DISPATCH_QUEUE       = "dispatcher/queue"
     // Rider sub-routes
@@ -72,9 +80,10 @@ private object Routes {
     const val NOTIFICATIONS        = "notifications"
     const val NOTIFICATION_PREFS   = "notifications/prefs"
 
-    fun requestDetail(id: String)  = "contributor/requests/$id"
-    fun taskDetail(id: String)     = "rider/tasks/$id"
-    fun liveTracking(id: String)   = "tracking/$id"
+    fun requestDetail(id: String)       = "contributor/requests/$id"
+    fun schoolRequestDetail(id: String) = "school/requests/$id"
+    fun taskDetail(id: String)          = "rider/tasks/$id"
+    fun liveTracking(id: String)        = "tracking/$id"
 }
 
 private fun User.homeRoute(): String = when (role) {
@@ -198,6 +207,8 @@ fun RootNavGraph(
                     authViewModel.logout()
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
+                onNavigateToRequests      = { navController.navigate(Routes.SCHOOL_REQUESTS) },
+                onNavigateToCreateRequest = { navController.navigate(Routes.SCHOOL_CREATE_REQUEST) },
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 unreadCount               = unreadCount,
             )
@@ -212,6 +223,8 @@ fun RootNavGraph(
                     authViewModel.logout()
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
+                onNavigateToRequests      = { navController.navigate(Routes.SCHOOL_REQUESTS) },
+                onNavigateToCreateRequest = { navController.navigate(Routes.SCHOOL_CREATE_REQUEST) },
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 unreadCount               = unreadCount,
             )
@@ -274,6 +287,40 @@ fun RootNavGraph(
             route     = Routes.REQUEST_DETAIL,
             arguments = listOf(navArgument("requestId") { type = NavType.StringType }),
             deepLinks = listOf(navDeepLink { uriPattern = "sujana://request/{requestId}" }),
+        ) {
+            val viewModel: RequestDetailViewModel = hiltViewModel()
+            RequestDetailScreen(
+                onNavigateUp         = { navController.navigateUp() },
+                onNavigateToTracking = { assignmentId -> navController.navigate(Routes.liveTracking(assignmentId)) },
+                viewModel            = viewModel,
+            )
+        }
+
+        // --- School routes ---
+        composable(Routes.SCHOOL_REQUESTS) {
+            val viewModel: SchoolRequestsViewModel = hiltViewModel()
+            SchoolRequestsScreen(
+                onNavigateUp       = { navController.navigateUp() },
+                onNavigateToDetail = { id -> navController.navigate(Routes.schoolRequestDetail(id)) },
+                onNavigateToCreate = { navController.navigate(Routes.SCHOOL_CREATE_REQUEST) },
+                viewModel          = viewModel,
+            )
+        }
+        composable(Routes.SCHOOL_CREATE_REQUEST) {
+            val viewModel: SchoolRequestViewModel = hiltViewModel()
+            SchoolRequestScreen(
+                onNavigateUp    = { navController.navigateUp() },
+                onSubmitSuccess = { id ->
+                    navController.navigate(Routes.schoolRequestDetail(id)) {
+                        popUpTo(Routes.SCHOOL_CREATE_REQUEST) { inclusive = true }
+                    }
+                },
+                viewModel       = viewModel,
+            )
+        }
+        composable(
+            route     = Routes.SCHOOL_REQUEST_DETAIL,
+            arguments = listOf(navArgument("requestId") { type = NavType.StringType }),
         ) {
             val viewModel: RequestDetailViewModel = hiltViewModel()
             RequestDetailScreen(

@@ -13,6 +13,8 @@ data class CreateRequestRequest(
     val dropoffSchoolId: String? = null,
     val notes: String? = null,
     val photoUrl: String? = null,
+    val scheduledFor: String? = null,
+    val requesterSchoolId: String? = null,
 )
 
 @Serializable
@@ -31,6 +33,8 @@ data class RequestDto(
     val assignmentId: String? = null,
     val notes: String?,
     val photoUrl: String?,
+    val scheduledFor: String? = null,
+    val requesterSchoolId: String? = null,
     val createdAt: String,
     val updatedAt: String,
 )

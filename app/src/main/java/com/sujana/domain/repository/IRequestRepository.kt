@@ -9,9 +9,11 @@ interface IRequestRepository {
         pickupLat: Double,
         pickupLng: Double,
         pickupAddress: String,
-        dropoffSchoolId: String?,
-        notes: String?,
-        photoUrl: String?,
+        dropoffSchoolId: String? = null,
+        notes: String? = null,
+        photoUrl: String? = null,
+        type: com.sujana.shared.RequestType = com.sujana.shared.RequestType.CONTRIBUTOR,
+        scheduledFor: String? = null,
     ): AppResult<PickupRequest>
 
     suspend fun getMyRequests(): AppResult<List<PickupRequest>>

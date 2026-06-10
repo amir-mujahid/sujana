@@ -46,6 +46,9 @@ during normal stage work.** Everything you need to build is distilled into the s
 | **Notification deep-link scheme** | `sujana://request/{id}`, `sujana://assignment/{id}`, `sujana://dispatch`, `sujana://notifications`. Registered via `navDeepLink` in NavGraph; `handleSujanaDeepLink()` for in-app nav from NotificationCenter. FCM notification tap → Activity intent with `sujana://` URI → Compose Navigation. ✅ Implemented in **Stage 5**. |
 | **FCM messages MUST be data-only** | Never add `setNotification()` to FCM messages. Background "notification+data" messages are displayed by the OS — `onMessageReceived` is NOT called, so deep-link data is lost and tap opens home screen. Data-only always delivers to `onMessageReceived`. Use `AndroidConfig.Priority.HIGH` + `PRIORITY_HIGH` on the local notification for heads-up banners. ✅ Locked in **Stage 5**. |
 | **WS event types split** | Rider assignment transitions emit `ASSIGNMENT_STATUS_CHANGED`; dispatcher/route logic emits `REQUEST_STATUS_CHANGED`. Any screen showing request status must handle both. Mirror: ASSIGNED/ACCEPTED→ASSIGNED, COLLECTED→COLLECTED, DELIVERED→DELIVERED, COMPLETED→COMPLETED, CANCELLED→PENDING. ✅ Locked in **Stage 5**. |
+| **Tenant scoping (Stage 6)** | `users.tenant_id` = UUID grouping entity to an MPS. `schools.tenant_id` = same UUID. Dispatcher sees CONTRIBUTOR requests (all) + SCHOOL requests from schools in their tenant. SCHOOL_ADMIN sees all requests for their school (`requester_school_id`). SCHOOL_STAFF sees own requests. ✅ Locked in **Stage 6**. |
+| **School request scheduling** | Optional `scheduled_for TIMESTAMPTZ` on `requests`. No future-only enforcement (Stage 9). Stored as ISO-8601 OffsetDateTime. `requester_school_id UUID NULL REFERENCES schools(id)` derived server-side from `users.tenant_id → schools.id`. ✅ Locked in **Stage 6**. |
+| **School assignment access** | SCHOOL_ADMIN and SCHOOL_STAFF can call `GET /assignments/{id}` for their own request's assignment (needed for live tracking). ✅ Locked in **Stage 6**. |
 
 **Free-tier caveats** (do not block local dev): Cloud Run & Google Maps need a billing account even on free tier.
 
@@ -92,13 +95,13 @@ Legend: ⬜ not started · 🔶 in progress · ✅ done
 | 3 | Dispatch & Assignment | ✅ | `assignments` table, state machine, dispatcher queue, rider inbox |
 | 4 | Live Tracking & Maps | ✅ | LocationTrackingService → RTDB → LiveTrackingScreen + Directions API polyline |
 | 5 | Notifications (all roles) | ✅ | WebSocket foreground push + FCM background, `notifications` table, in-app center, per-role events, prefs |
-| 6 | School→MPS Workflow | ⬜ | Second workflow on shared request/assignment infra |
+| 6 | School→MPS Workflow | ✅ | SCHOOL requests, scheduling (scheduled_for), tenant scoping, school home screens, notifications |
 | 7 | Admin & Tenant Management | ⬜ | Tenants/schools/waste-points/users CRUD, audit logs |
 | 8 | Analytics Dashboard | ⬜ | Postgres aggregates + charts |
 | 9 | Offline · Performance · Security | ⬜ | Room cache, Paging 3, indexing, hardening, R8 |
 | 10 | Observability · Testing · Deploy | ⬜ | Crashlytics/Analytics, tests, deploy backend |
 
-**▶ CURRENT STAGE: 6 — School→MPS Workflow** (`STAGE-06-school-mps.md`)
+**▶ CURRENT STAGE: 7 — Admin & Tenant Management** (`STAGE-07-admin-tenant-mgmt.md`)
 
 > When you finish a stage: tick every box in its stage file, fill its **Handoff notes**,
 > set its row above to ✅, move the **▶ CURRENT STAGE** pointer to the next stage, then STOP.

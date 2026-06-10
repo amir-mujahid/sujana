@@ -28,10 +28,20 @@ fun Route.assignmentRoutes() {
                 ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val body = call.receive<CreateAssignmentRequest>()
             val dto = AssignmentService.createAssignment(principal, body)
+            val requesterId = AssignmentService.requesterIdForAssignment(UUID.fromString(dto.id))
             NotificationService.onNewAssignment(
                 assignmentId = UUID.fromString(dto.id),
-                riderId = UUID.fromString(dto.riderId),
+                riderId      = UUID.fromString(dto.riderId),
             )
+            // Also notify the school requester that a rider has been assigned
+            if (requesterId != null) {
+                NotificationService.onRequestStatusChanged(
+                    requestId   = UUID.fromString(dto.requestId),
+                    newStatus   = com.sujana.shared.RequestStatus.ASSIGNED,
+                    requesterId = requesterId,
+                    riderId     = UUID.fromString(dto.riderId),
+                )
+            }
             call.respond(HttpStatusCode.Created, dto)
         }
 

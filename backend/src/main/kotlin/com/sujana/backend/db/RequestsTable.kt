@@ -13,10 +13,12 @@ object RequestsTable : Table("requests") {
     val pickupLng       = double("pickup_lng")
     val pickupAddress   = text("pickup_address").default("")
     val dropoffSchoolId = uuid("dropoff_school_id").references(SchoolsTable.id).nullable()
-    val notes           = text("notes").nullable()
-    val photoUrl        = text("photo_url").nullable()
-    val createdAt       = timestampWithTimeZone("created_at")
-    val updatedAt       = timestampWithTimeZone("updated_at")
+    val notes             = text("notes").nullable()
+    val photoUrl          = text("photo_url").nullable()
+    val scheduledFor      = timestampWithTimeZone("scheduled_for").nullable()
+    val requesterSchoolId = uuid("requester_school_id").references(SchoolsTable.id).nullable()
+    val createdAt         = timestampWithTimeZone("created_at")
+    val updatedAt         = timestampWithTimeZone("updated_at")
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -1,0 +1,3 @@
+ALTER TABLE requests
+  ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ NULL,
+  ADD COLUMN IF NOT EXISTS requester_school_id UUID NULL REFERENCES schools(id);

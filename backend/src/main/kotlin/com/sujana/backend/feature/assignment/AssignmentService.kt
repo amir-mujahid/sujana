@@ -112,14 +112,22 @@ object AssignmentService {
 
         val canAccess = when (role) {
             Role.RIDER -> row[AssignmentsTable.riderId] == user[UsersTable.id]
-            Role.CONTRIBUTOR -> {
+            Role.CONTRIBUTOR, Role.SCHOOL_ADMIN, Role.SCHOOL_STAFF -> {
                 val requestRow = RequestsTable.selectAll()
                     .where { RequestsTable.id eq row[AssignmentsTable.requestId] }
                     .singleOrNull()
-                requestRow?.get(RequestsTable.requesterId) == user[UsersTable.id]
+                val isRequester = requestRow?.get(RequestsTable.requesterId) == user[UsersTable.id]
+                // SCHOOL_ADMIN can also access any request from their school
+                val isSchoolAdmin = role == Role.SCHOOL_ADMIN && run {
+                    val tenantId = user[UsersTable.tenantId] ?: return@run false
+                    val schoolId = SchoolsTable.selectAll()
+                        .where { SchoolsTable.tenantId eq tenantId }
+                        .firstOrNull()?.get(SchoolsTable.id) ?: return@run false
+                    requestRow?.get(RequestsTable.requesterSchoolId) == schoolId
+                }
+                isRequester || isSchoolAdmin
             }
             Role.MPS_DISPATCHER, Role.MPS_ADMIN, Role.SUPER_ADMIN -> true
-            else -> false
         }
         if (!canAccess) throw SecurityException("Access denied")
         row.toDto()

@@ -24,15 +24,19 @@ class RequestRepositoryImpl @Inject constructor(
         dropoffSchoolId: String?,
         notes: String?,
         photoUrl: String?,
+        type: com.sujana.shared.RequestType,
+        scheduledFor: String?,
     ): AppResult<PickupRequest> = runCatching {
         api.createRequest(
             CreateRequestRequest(
+                type            = type,
                 pickupLat       = pickupLat,
                 pickupLng       = pickupLng,
                 pickupAddress   = pickupAddress,
                 dropoffSchoolId = dropoffSchoolId,
                 notes           = notes,
                 photoUrl        = photoUrl,
+                scheduledFor    = scheduledFor,
             )
         ).toDomain()
     }.toAppResult()
@@ -82,6 +86,8 @@ private fun RequestDto.toDomain() = PickupRequest(
     assignmentId      = assignmentId,
     notes             = notes,
     photoUrl          = photoUrl,
+    scheduledFor      = scheduledFor,
+    requesterSchoolId = requesterSchoolId,
     createdAt         = createdAt,
     updatedAt         = updatedAt,
 )
