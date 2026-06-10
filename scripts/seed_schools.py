@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import time
 import uuid
 from pathlib import Path
 
@@ -33,7 +34,6 @@ V3_DELETE_IDS = [
     "a1b2c3d4-0000-0000-0000-000000000004",  # SK Taman Megah     (primary)
 ]
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_MIRRORS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
@@ -133,7 +133,6 @@ def write_sql(schools: list[dict], path: Path) -> None:
 
 def fetch_schools() -> list[dict]:
     """Query OSM Overpass API; tries multiple mirrors and retries on 429/406."""
-    import time
     print("Querying Overpass API... (this may take 30-60s)")
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -160,6 +159,8 @@ def fetch_schools() -> list[dict]:
                     continue
                 resp.raise_for_status()
                 elements = resp.json()["elements"]
+                if not elements:
+                    raise RuntimeError(f"Mirror {mirror} returned 0 elements — possible server-side timeout. Try again.")
                 print(f"Fetched {len(elements)} elements.")
                 return elements
             except requests.exceptions.RequestException as e:
