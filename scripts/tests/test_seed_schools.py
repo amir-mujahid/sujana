@@ -1,5 +1,8 @@
 import pytest
-from seed_schools import is_secondary, extract_coords
+import uuid as _uuid
+import tempfile
+from pathlib import Path
+from seed_schools import is_secondary, extract_coords, make_school_id, process, write_sql
 
 
 class TestIsSecondary:
@@ -94,3 +97,92 @@ class TestExtractCoords:
 
     def test_way_center_missing_lat_returns_none(self):
         assert extract_coords({"type": "way", "center": {}}) is None
+
+
+class TestMakeSchoolId:
+    def test_deterministic(self):
+        assert make_school_id("SMK Subang Jaya") == make_school_id("SMK Subang Jaya")
+
+    def test_different_names_give_different_ids(self):
+        assert make_school_id("SMK Subang Jaya") != make_school_id("SMK Tropicana")
+
+    def test_valid_uuid5(self):
+        result = make_school_id("SMK Test")
+        parsed = _uuid.UUID(result)
+        assert parsed.version == 5
+
+
+class TestProcess:
+    def _node(self, name, lat=3.0, lng=101.0):
+        return {"type": "node", "lat": lat, "lon": lng, "tags": {"name": name}}
+
+    def test_includes_smk(self):
+        result = process([self._node("SMK Damansara")])
+        assert len(result) == 1
+        assert result[0]["name"] == "SMK Damansara"
+
+    def test_excludes_primary(self):
+        assert process([self._node("SK Damansara")]) == []
+
+    def test_skips_missing_name(self):
+        el = {"type": "node", "lat": 3.0, "lon": 101.0, "tags": {}}
+        assert process([el]) == []
+
+    def test_skips_missing_coords(self):
+        el = {"type": "node", "tags": {"name": "SMK Test"}}
+        assert process([el]) == []
+
+    def test_deduplicates_by_rounded_coords(self):
+        # 3.12341 rounds to 3.1234 at 4 decimal places — same key as 3.1234
+        elements = [
+            self._node("SMK Damansara", 3.1234, 101.5678),
+            self._node("SMK Damansara", 3.12341, 101.56781),
+        ]
+        assert len(process(elements)) == 1
+
+    def test_keeps_distinct_locations_same_name(self):
+        elements = [
+            self._node("SMK Damansara", 3.1234, 101.5678),
+            self._node("SMK Damansara", 3.9999, 102.9999),
+        ]
+        assert len(process(elements)) == 2
+
+    def test_sorted_by_name(self):
+        elements = [
+            self._node("SMK Zetara", lat=3.1),
+            self._node("SMK Alpha", lat=3.2),
+        ]
+        result = process(elements)
+        assert result[0]["name"] == "SMK Alpha"
+        assert result[1]["name"] == "SMK Zetara"
+
+
+class TestWriteSql:
+    def _write(self, schools):
+        tmp = Path(tempfile.mktemp(suffix=".sql"))
+        write_sql(schools, tmp)
+        return tmp.read_text(encoding="utf-8")
+
+    def test_contains_delete_block(self):
+        content = self._write([])
+        assert "DELETE FROM schools WHERE id IN" in content
+        assert "a1b2c3d4-0000-0000-0000-000000000001" in content
+        assert "a1b2c3d4-0000-0000-0000-000000000003" in content
+        assert "a1b2c3d4-0000-0000-0000-000000000004" in content
+
+    def test_contains_insert_and_conflict_clause(self):
+        schools = [{"name": "SMK Test", "lat": 3.1, "lng": 101.5}]
+        content = self._write(schools)
+        assert "INSERT INTO schools (id, name, lat, lng) VALUES" in content
+        assert "SMK Test" in content
+        assert "ON CONFLICT (id) DO NOTHING;" in content
+
+    def test_escapes_single_quotes_in_name(self):
+        schools = [{"name": "SM All Saints'", "lat": 3.0, "lng": 101.0}]
+        content = self._write(schools)
+        # SQL-escaped: ' becomes ''
+        assert "SM All Saints''" in content
+
+    def test_deterministic_across_two_calls(self):
+        schools = [{"name": "SMK Test", "lat": 3.0, "lng": 101.0}]
+        assert self._write(schools) == self._write(schools)
