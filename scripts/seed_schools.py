@@ -77,9 +77,9 @@ def extract_coords(element: dict) -> tuple[float, float] | None:
     return lat, lng
 
 
-def make_school_id(name: str) -> str:
-    """Deterministic UUID5 keyed on school name — stable across re-runs."""
-    return str(uuid.uuid5(NAMESPACE, f"isujana:school:{name}"))
+def make_school_id(name: str, lat: float, lng: float) -> str:
+    """Deterministic UUID5 keyed on name + rounded coordinates — unique across same-name schools in different states."""
+    return str(uuid.uuid5(NAMESPACE, f"isujana:school:{name}:{round(lat, 4)},{round(lng, 4)}"))
 
 
 def process(elements: list[dict]) -> list[dict]:
@@ -108,7 +108,7 @@ def write_sql(schools: list[dict], path: Path) -> None:
     delete_ids = ",\n".join(f"    '{sid}'" for sid in V3_DELETE_IDS)
 
     rows = [
-        f"    ('{make_school_id(s['name'])}', '{s['name'].replace(chr(39), chr(39)*2)}', {s['lat']}, {s['lng']})"
+        f"    ('{make_school_id(s['name'], s['lat'], s['lng'])}', '{s['name'].replace(chr(39), chr(39)*2)}', {s['lat']}, {s['lng']})"
         for s in schools
     ]
 

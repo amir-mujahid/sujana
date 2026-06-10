@@ -101,13 +101,16 @@ class TestExtractCoords:
 
 class TestMakeSchoolId:
     def test_deterministic(self):
-        assert make_school_id("SMK Subang Jaya") == make_school_id("SMK Subang Jaya")
+        assert make_school_id("SMK Subang Jaya", 3.0809, 101.5831) == make_school_id("SMK Subang Jaya", 3.0809, 101.5831)
 
     def test_different_names_give_different_ids(self):
-        assert make_school_id("SMK Subang Jaya") != make_school_id("SMK Tropicana")
+        assert make_school_id("SMK Subang Jaya", 3.0809, 101.5831) != make_school_id("SMK Tropicana", 3.1579, 101.5959)
+
+    def test_same_name_different_coords_give_different_ids(self):
+        assert make_school_id("SMK Tunku Abdul Rahman", 1.56, 110.31) != make_school_id("SMK Tunku Abdul Rahman", 5.16, 100.48)
 
     def test_valid_uuid5(self):
-        result = make_school_id("SMK Test")
+        result = make_school_id("SMK Test", 3.0, 101.0)
         parsed = _uuid.UUID(result)
         assert parsed.version == 5
 
